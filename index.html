@@ -1,0 +1,1767 @@
+<title>Portal de Proveedores</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0&display=block">
+<style>
+/* Layout: AppBar de marca arriba, menú lateral (cajón en celular) y contenido desplazable.
+   La marca (colores pastel, ícono, textos) la define el administrador en Configuración y MUI la convierte en tema. */
+:root{
+  --bg:#F6F4FC; --fg:#26232F; --muted:#666075; --accent:#B9A7F2;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#17151E;--fg:#ECE9F5;--muted:#ADA8BE;--accent:#B9A7F2;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17151E;--fg:#ECE9F5;--muted:#ADA8BE;--accent:#B9A7F2;color-scheme:dark}
+html,body,#root{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body)}
+.gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.material-symbols-rounded{font-variation-settings:'FILL' 0,'wght' 450,'GRAD' 0,'opsz' 24;user-select:none}
+.fill .material-symbols-rounded,.material-symbols-rounded.fill{font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24}
+.boot{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font:600 15px var(--f-body)}
+.num{font-variant-numeric:tabular-nums}
+@keyframes tourbar{from{width:0}to{width:100%}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="root"><div class="boot">Cargando portal…</div></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@mui/material@5.15.20/umd/material-ui.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect, useRef } = React;
+const {
+  createTheme, ThemeProvider, CssBaseline, useTheme, useMediaQuery, alpha, darken, lighten, getContrastRatio,
+  AppBar, Toolbar, Typography, Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText, IconButton, Icon,
+  Button, Card, CardContent, Grid, Chip, Avatar, Badge, Menu, MenuItem, Table, TableHead, TableBody, TableRow,
+  TableCell, TableContainer, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
+  Tabs, Tab, Switch, FormControlLabel, Slider, Stepper, Step, StepLabel, Divider, Stack, Tooltip,
+  ToggleButton, ToggleButtonGroup, LinearProgress, InputAdornment, ListSubheader, Collapse
+} = MaterialUI;
+
+/* ---------- Datos base ---------- */
+const TODAY = new Date('2026-11-09T12:00:00');
+const COMPANY = { name: 'Alimentos Andinos S.A.S.', nit: '900.123.456-7', nitRaw: '900123456' };
+const ME = 's1';
+const ME_USER = 'Andrea Ruiz';
+const SUP_USER = 'Sergio Ramírez';
+const fmt = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(n) || 0);
+const fdate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const daysFrom = d => Math.round((TODAY - new Date(d + 'T12:00:00')) / 86400000);
+const stamp = () => { const t = new Date(); return '09 nov 2026 · ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); };
+const onlyDigits = s => String(s || '').replace(/\D/g, '');
+
+const PASTELS = [
+  { n: 'Lavanda', c: '#B9A7F2' }, { n: 'Menta', c: '#9EDCC6' }, { n: 'Durazno', c: '#F7C5A8' }, { n: 'Rosa', c: '#F4B6C9' },
+  { n: 'Cielo', c: '#A9D3F5' }, { n: 'Mantequilla', c: '#F5E3A1' }, { n: 'Salvia', c: '#C3D9B0' }, { n: 'Lila', c: '#D7B8F0' },
+  { n: 'Coral', c: '#F5A9A0' }, { n: 'Agua', c: '#A6E3E0' }
+];
+const ICONS = ['storefront', 'local_shipping', 'inventory_2', 'factory', 'apartment', 'handshake', 'receipt_long', 'shopping_bag',
+  'agriculture', 'restaurant', 'medical_services', 'construction', 'bolt', 'eco', 'diamond', 'rocket_launch'];
+const FONTS = ['Nunito', 'Poppins', 'Quicksand', 'Roboto', 'Lato'];
+
+const DEFAULT_CFG = {
+  appName: 'Portal de Proveedores', companyName: COMPANY.name, icon: 'storefront', logo: null,
+  primary: '#B9A7F2', secondary: '#9EDCC6', appbar: '#FFFFFF',
+  buttonStyle: 'pastel', radius: 14, font: 'Nunito', density: 'comoda', mode: 'system',
+  texts: {
+    welcome: 'Bienvenido al portal de proveedores de Alimentos Andinos. Radique sus facturas, mantenga sus documentos al día y consulte sus pagos sin enviar correos.',
+    footer: '© 2026 Alimentos Andinos S.A.S. · NIT 900.123.456-7 · Bogotá, Colombia',
+    supportEmail: 'proveedores@alimentosandinos.co',
+    supportPhone: '+57 601 745 2200',
+    dataNotice: 'Sus datos personales se tratan conforme a la Ley 1581 de 2012 y a nuestra Política de Tratamiento de Datos.',
+    terms: 'Al usar el portal acepta que las facturas radicadas aquí reemplazan el envío por correo electrónico.'
+  },
+  params: { alertDays: [30, 15, 5], blockOnExpired: true, maxFileMb: 10, extensions: 'pdf, xml, zip, jpg, png', requirePO: false, approvalLevels: 1 }
+};
+const CFG_KEY = 'portal-proveedores-cfg-v1';
+function loadCfg() {
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    if (!raw) return DEFAULT_CFG;
+    const c = JSON.parse(raw);
+    return { ...DEFAULT_CFG, ...c, texts: { ...DEFAULT_CFG.texts, ...(c.texts || {}) }, params: { ...DEFAULT_CFG.params, ...(c.params || {}) } };
+  } catch (e) { return DEFAULT_CFG; }
+}
+function saveCfg(c) { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch (e) { } }
+
+const ST = {
+  'Radicada': '#A9D3F5', 'En revisión': '#F5E3A1', 'Requiere ajustes': '#F7C5A8', 'Aprobada': '#9EDCC6', 'Rechazada': '#F4A9B8',
+  'Programada para pago': '#D7B8F0', 'Pagada': '#B5DDA4', 'Activo': '#9EDCC6', 'Invitado': '#A9D3F5', 'En registro': '#A6E3E0',
+  'Bloqueado': '#F4A9B8', 'Inactivo': '#E3DEEE', 'Vigente': '#9EDCC6', 'Por vencer': '#F5E3A1', 'Vencido': '#F4A9B8', 'Vencida': '#F4A9B8',
+  'Incompleta': '#F7C5A8', 'Aprobado': '#9EDCC6', 'Rechazado': '#F4A9B8', 'Sin documentos': '#E3DEEE', 'Publicado': '#9EDCC6',
+  'Retirado': '#E3DEEE', 'Activo ': '#9EDCC6', 'Desactivado': '#E3DEEE'
+};
+const INV_STATES = ['Radicada', 'En revisión', 'Requiere ajustes', 'Aprobada', 'Rechazada', 'Programada para pago', 'Pagada'];
+
+function h(state, at, by, reason) { return { state, at, by, reason }; }
+function seed() {
+  const suppliers = [
+    { id: 's1', name: 'Transportes La Sabana S.A.S.', nit: '830.045.221-3', type: 'Servicios', status: 'Activo', docs: 'Por vencer', email: 'facturacion@lasabana.co', city: 'Bogotá', contact: 'Sergio Ramírez' },
+    { id: 's2', name: 'Empaques del Valle Ltda.', nit: '805.112.987-1', type: 'Bienes', status: 'Activo', docs: 'Vigente', email: 'cartera@empaquesvalle.com', city: 'Cali', contact: 'Paola Ríos' },
+    { id: 's3', name: 'Agroinsumos El Rocío S.A.S.', nit: '900.876.334-5', type: 'Bienes', status: 'En revisión', docs: 'Incompleta', email: 'admin@elrocio.co', city: 'Tunja', contact: 'Hernán Vargas' },
+    { id: 's4', name: 'Soluciones TIC Andina S.A.S.', nit: '901.223.410-8', type: 'Servicios', status: 'Activo', docs: 'Vencida', email: 'facturas@ticandina.co', city: 'Medellín', contact: 'Natalia Correa' },
+    { id: 's5', name: 'Frigoríficos Guadalupe S.A.', nit: '860.004.552-0', type: 'Bienes', status: 'Bloqueado', docs: 'Vencida', email: 'contabilidad@frigoguadalupe.com', city: 'Bogotá', contact: 'Óscar León' },
+    { id: 's6', name: 'Aseo Integral Bogotá S.A.S.', nit: '900.554.781-2', type: 'Servicios', status: 'Invitado', docs: 'Sin documentos', email: 'gerencia@aseointegral.co', city: 'Bogotá', contact: 'Liliana Mora' }
+  ];
+  const inv = (id, number, sid, date, total, status, history, extra = {}) => ({ id, rad: 'RAD-2026-' + String(4800 + Number(id.slice(1))).padStart(6, '0'), number, sid, date, total, status, history, versions: 1, comments: [], po: extra.po || '', ...extra });
+  const invoices = [
+    inv('i1', 'LS-2284', 's1', '2026-10-28', 18450000, 'Pagada', [h('Radicada', '28 oct 2026 · 09:12', SUP_USER), h('En revisión', '29 oct 2026 · 08:40', 'Diana Pardo'), h('Aprobada', '30 oct 2026 · 16:05', 'Julián Ortiz'), h('Pagada', '06 nov 2026 · 11:20', 'Laura Gómez', 'Fuente: manual · Ref. TRF-778120')]),
+    inv('i2', 'LS-2291', 's1', '2026-11-03', 7920000, 'Requiere ajustes', [h('Radicada', '03 nov 2026 · 10:02', SUP_USER), h('En revisión', '04 nov 2026 · 09:15', 'Diana Pardo'), h('Requiere ajustes', '04 nov 2026 · 09:31', 'Diana Pardo', 'Falta número de orden de compra · Incluir la OC 4500-1187 en la factura.')]),
+    inv('i3', 'LS-2295', 's1', '2026-11-06', 12300000, 'En revisión', [h('Radicada', '06 nov 2026 · 15:44', SUP_USER), h('En revisión', '07 nov 2026 · 08:10', 'Diana Pardo')]),
+    inv('i4', 'EV-10388', 's2', '2026-11-01', 4215500, 'Radicada', [h('Radicada', '01 nov 2026 · 14:20', 'Paola Ríos')]),
+    inv('i5', 'EV-10391', 's2', '2026-11-07', 3880000, 'Radicada', [h('Radicada', '07 nov 2026 · 11:03', 'Paola Ríos')]),
+    inv('i6', 'TA-554', 's4', '2026-10-20', 25600000, 'Aprobada', [h('Radicada', '20 oct 2026 · 09:00', 'Natalia Correa'), h('En revisión', '21 oct 2026 · 10:30', 'Diana Pardo'), h('Aprobada', '23 oct 2026 · 17:12', 'Julián Ortiz')]),
+    inv('i7', 'TA-560', 's4', '2026-11-02', 9100000, 'Programada para pago', [h('Radicada', '02 nov 2026 · 08:30', 'Natalia Correa'), h('Aprobada', '04 nov 2026 · 12:00', 'Julián Ortiz'), h('Programada para pago', '05 nov 2026 · 09:00', 'Laura Gómez', 'Fecha estimada: 30 nov 2026')], { payDate: '2026-11-30' }),
+    inv('i8', 'LS-2279', 's1', '2026-10-10', 15000000, 'Pagada', [h('Radicada', '10 oct 2026 · 09:40', SUP_USER), h('Aprobada', '14 oct 2026 · 15:10', 'Julián Ortiz'), h('Pagada', '24 oct 2026 · 10:00', 'Laura Gómez', 'Fuente: manual · Ref. TRF-771045')]),
+    inv('i9', 'FG-8812', 's5', '2026-10-15', 6700000, 'Rechazada', [h('Radicada', '15 oct 2026 · 13:00', 'Óscar León'), h('Rechazada', '16 oct 2026 · 09:20', 'Diana Pardo', 'Receptor incorrecto · La factura no está dirigida a Alimentos Andinos (NIT receptor).')])
+  ];
+  invoices[1].comments = [{ by: 'Diana Pardo', side: 'empresa', at: '04 nov 2026 · 09:31', text: 'Por favor incluyan la OC 4500-1187; sin ella no podemos aprobar.' }];
+  const payments = [
+    { id: 'p1', iid: 'i1', paidAt: '2026-11-06', amount: 18450000, ref: 'TRF-778120', source: 'Manual', by: 'Laura Gómez (Tesorería)', receipt: 'comprobante-TRF-778120.pdf' },
+    { id: 'p2', iid: 'i8', paidAt: '2026-10-24', amount: 15000000, ref: 'TRF-771045', source: 'Manual', by: 'Laura Gómez (Tesorería)', receipt: 'comprobante-TRF-771045.pdf' }
+  ];
+  const docs = [
+    { id: 'd1', name: 'RUT', required: true, expires: null, status: 'Aprobado', version: 2, file: 'RUT-830045221.pdf' },
+    { id: 'd2', name: 'Cámara de Comercio (≤ 30 días)', required: true, expires: '2026-11-28', status: 'Aprobado', version: 4, file: 'camara-comercio-oct2026.pdf' },
+    { id: 'd3', name: 'Certificación bancaria', required: true, expires: '2027-03-10', status: 'Aprobado', version: 1, file: 'cert-bancaria-bancolombia.pdf' },
+    { id: 'd4', name: 'Planilla de seguridad social', required: true, expires: '2026-11-15', status: 'Aprobado', version: 9, file: 'pila-octubre-2026.pdf' },
+    { id: 'd5', name: 'Póliza de responsabilidad civil', required: false, expires: '2027-06-30', status: 'Rechazado', version: 1, file: 'poliza-rc.jpg', reason: 'Documento ilegible: cargue el PDF emitido por la aseguradora.' }
+  ];
+  const certs = [
+    { id: 'c1', sid: 's1', type: 'Retención en la fuente', period: 'Año gravable 2025', published: '2026-03-12', downloads: 3, status: 'Publicado', file: 'ret-fuente-2025-830045221.pdf' },
+    { id: 'c2', sid: 's1', type: 'ReteICA', period: '5.º bimestre 2026', published: '2026-11-05', downloads: 0, status: 'Publicado', file: 'reteica-b5-2026-830045221.pdf', isNew: true },
+    { id: 'c3', sid: 's1', type: 'ReteIVA', period: '4.º bimestre 2026', published: '2026-09-15', downloads: 1, status: 'Publicado', file: 'reteiva-b4-2026-830045221.pdf' },
+    { id: 'c4', sid: 's2', type: 'Retención en la fuente', period: 'Año gravable 2025', published: '2026-03-12', downloads: 2, status: 'Publicado', file: 'ret-fuente-2025-805112987.pdf' },
+    { id: 'c5', sid: 's4', type: 'Retención en la fuente', period: 'Año gravable 2025', published: '2026-03-12', downloads: 0, status: 'Publicado', file: 'ret-fuente-2025-901223410.pdf' }
+  ];
+  const users = [
+    { id: 'u1', name: 'Andrea Ruiz', email: 'aruiz@alimentosandinos.co', roles: ['Administrador'], active: true },
+    { id: 'u2', name: 'Carlos Méndez', email: 'cmendez@alimentosandinos.co', roles: ['Compras'], active: true },
+    { id: 'u3', name: 'Diana Pardo', email: 'dpardo@alimentosandinos.co', roles: ['Cuentas por pagar'], active: true },
+    { id: 'u4', name: 'Julián Ortiz', email: 'jortiz@alimentosandinos.co', roles: ['Aprobador'], active: true },
+    { id: 'u5', name: 'Laura Gómez', email: 'lgomez@alimentosandinos.co', roles: ['Tesorería'], active: true },
+    { id: 'u6', name: 'Mónica Silva', email: 'msilva@alimentosandinos.co', roles: ['Contabilidad'], active: true },
+    { id: 'u7', name: 'Revisoría Fiscal', email: 'revisoria@kpmg-demo.co', roles: ['Auditor'], active: false }
+  ];
+  const audit = [
+    { at: '09 nov 2026 · 07:58', actor: 'Andrea Ruiz', action: 'Inicio de sesión', entity: 'Sesión', detail: 'IP 181.52.10.4 · Chrome' },
+    { at: '07 nov 2026 · 08:10', actor: 'Diana Pardo', action: 'Cambio de estado', entity: 'Factura LS-2295', detail: 'Radicada → En revisión' },
+    { at: '06 nov 2026 · 11:20', actor: 'Laura Gómez', action: 'Registro de pago', entity: 'Factura LS-2284', detail: 'Fuente manual · TRF-778120 · ' + fmt(18450000) },
+    { at: '05 nov 2026 · 16:02', actor: 'Mónica Silva', action: 'Publicación de certificado', entity: 'ReteICA 5.º bim. 2026', detail: 'Transportes La Sabana · NIT validado' },
+    { at: '04 nov 2026 · 09:31', actor: 'Diana Pardo', action: 'Solicitud de ajustes', entity: 'Factura LS-2291', detail: 'Falta número de orden de compra' }
+  ];
+  const notifs = [
+    { id: 'n1', to: 'proveedor', at: '05 nov 2026', icon: 'workspace_premium', text: 'Nuevo certificado ReteICA 5.º bimestre 2026 disponible.', read: false },
+    { id: 'n2', to: 'proveedor', at: '04 nov 2026', icon: 'edit_note', text: 'La factura LS-2291 requiere ajustes: falta número de orden de compra.', read: false },
+    { id: 'n3', to: 'proveedor', at: '02 nov 2026', icon: 'event_busy', text: 'Su Planilla de seguridad social vence el 15 nov 2026.', read: true },
+    { id: 'n4', to: 'empresa', at: '07 nov 2026', icon: 'receipt_long', text: 'Empaques del Valle radicó la factura EV-10391.', read: false },
+    { id: 'n5', to: 'empresa', at: '06 nov 2026', icon: 'how_to_reg', text: 'Agroinsumos El Rocío envió su registro para revisión.', read: false },
+    { id: 'n6', to: 'empresa', at: '01 nov 2026', icon: 'event_busy', text: 'Soluciones TIC Andina tiene la póliza de cumplimiento vencida.', read: true }
+  ];
+  return { suppliers, invoices, payments, docs, certs, users, audit, notifs, seq: 10 };
+}
+
+function docState(d) {
+  if (d.status === 'Rechazado' || d.status === 'En revisión') return d.status;
+  if (!d.expires) return 'Vigente';
+  const left = -daysFrom(d.expires);
+  if (left < 0) return 'Vencido';
+  if (left <= 30) return 'Por vencer';
+  return 'Vigente';
+}
+
+/* ---------- Tema MUI a partir de la marca ---------- */
+const DARK_INK = '#1E1B2E';
+const bestInk = c => (getContrastRatio(c, '#FFFFFF') >= getContrastRatio(c, DARK_INK) ? '#FFFFFF' : DARK_INK);
+function buildTheme(cfg, sysDark) {
+  const mode = cfg.mode === 'system' ? (sysDark ? 'dark' : 'light') : cfg.mode;
+  const dark = mode === 'dark';
+  const p = cfg.primary, s = cfg.secondary;
+  const solid = cfg.buttonStyle === 'solid';
+  const pMain = solid ? darken(p, 0.42) : p;
+  const pInk = solid ? bestInk(pMain) : darken(p, 0.72);
+  const strong = dark ? lighten(p, 0.25) : darken(p, 0.58);
+  const compact = cfg.density === 'compacta';
+  const r = Number(cfg.radius);
+  return createTheme({
+    palette: {
+      mode,
+      primary: { main: pMain, contrastText: pInk, light: lighten(p, 0.6), dark: darken(pMain, 0.08) },
+      secondary: { main: s, contrastText: darken(s, 0.72) },
+      background: dark ? { default: '#17151E', paper: '#211E2A' } : { default: lighten(p, 0.9), paper: '#FFFFFF' },
+      text: dark ? { primary: '#ECE9F5', secondary: '#ADA8BE' } : { primary: '#26232F', secondary: '#615B70' },
+      divider: dark ? 'rgba(236,233,245,.10)' : 'rgba(38,35,47,.10)',
+      success: { main: dark ? '#81C995' : '#2E7D4F' }, warning: { main: dark ? '#F2C46D' : '#9A6A00' }, error: { main: dark ? '#F28B95' : '#B3261E' }
+    },
+    shape: { borderRadius: r },
+    brand: { strong, primary: p, secondary: s, appbar: cfg.appbar, appInk: bestInk(cfg.appbar) },
+    typography: {
+      fontFamily: `"${cfg.font}", system-ui, -apple-system, "Segoe UI", sans-serif`,
+      h4: { fontWeight: 800, letterSpacing: '-.01em' }, h5: { fontWeight: 800 }, h6: { fontWeight: 700 },
+      subtitle2: { fontWeight: 700 }, button: { textTransform: 'none', fontWeight: 700, letterSpacing: '.01em' },
+      overline: { fontWeight: 700, letterSpacing: '.1em' }
+    },
+    components: {
+      MuiCssBaseline: { styleOverrides: { body: { backgroundColor: dark ? '#17151E' : lighten(p, 0.9) } } },
+      MuiButton: {
+        defaultProps: { disableElevation: true, size: compact ? 'small' : 'medium' },
+        styleOverrides: {
+          root: { borderRadius: Math.max(r, 8), paddingInline: 16 },
+          textPrimary: { color: strong }, outlinedPrimary: { color: strong, borderColor: alpha(strong, 0.35) },
+          containedSecondary: { color: darken(s, 0.72) }
+        }
+      },
+      MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+      MuiCard: { defaultProps: { elevation: 0 }, styleOverrides: { root: { border: `1px solid ${dark ? 'rgba(236,233,245,.10)' : 'rgba(38,35,47,.09)'}`, borderRadius: r + 2 } } },
+      MuiTextField: { defaultProps: { size: compact ? 'small' : 'medium', fullWidth: true } },
+      MuiTable: { defaultProps: { size: compact ? 'small' : 'medium' } },
+      MuiTableCell: { styleOverrides: { head: { fontWeight: 700, color: dark ? '#ADA8BE' : '#615B70', whiteSpace: 'nowrap' } } },
+      MuiChip: { styleOverrides: { root: { fontWeight: 700, borderRadius: Math.max(r - 4, 6) } } },
+      MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 700, minHeight: 44, '&.Mui-selected': { color: strong } } } },
+      MuiTabs: { styleOverrides: { indicator: { backgroundColor: strong, height: 3, borderRadius: 3 } } },
+      MuiDialog: { styleOverrides: { paper: { borderRadius: r + 4 } } },
+      MuiListItemButton: { styleOverrides: { root: { borderRadius: Math.max(r - 2, 6) } } },
+      MuiToggleButton: { styleOverrides: { root: { textTransform: 'none', fontWeight: 700, '&.Mui-selected': { backgroundColor: alpha(p, dark ? .3 : .45), color: strong } } } },
+      MuiStepIcon: { styleOverrides: { root: { '&.Mui-active, &.Mui-completed': { color: dark ? p : darken(p, 0.25) } } } }
+    }
+  });
+}
+
+function useSysDark() {
+  const get = () => {
+    const t = document.documentElement.dataset.theme;
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+  const [d, setD] = useState(get);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const f = () => setD(get());
+    mq.addEventListener && mq.addEventListener('change', f);
+    const mo = new MutationObserver(f);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => { mq.removeEventListener && mq.removeEventListener('change', f); mo.disconnect(); };
+  }, []);
+  return d;
+}
+
+/* ---------- Piezas reutilizables ---------- */
+const I = ({ n, fill, sx, ...p }) => <Icon baseClassName="material-symbols-rounded" className={fill ? 'fill' : undefined} sx={{ fontSize: 22, ...sx }} {...p}>{n}</Icon>;
+function soft(c, t) { return t.palette.mode === 'dark' ? alpha(c, 0.22) : c; }
+function inkOn(c, t) { return t.palette.mode === 'dark' ? lighten(c, 0.35) : darken(c, 0.68); }
+
+function StatusChip({ s, size = 'small' }) {
+  const t = useTheme();
+  const c = ST[s] || '#E3DEEE';
+  return <Chip size={size} label={s} sx={{ bgcolor: soft(c, t), color: inkOn(c, t) }} />;
+}
+function BrandMark({ cfg, size = 36 }) {
+  const t = useTheme();
+  if (cfg.logo) return <Avatar src={cfg.logo} variant="rounded" sx={{ width: size, height: size, bgcolor: 'transparent', borderRadius: 2 }} />;
+  return <Avatar variant="rounded" sx={{ width: size, height: size, bgcolor: cfg.primary, color: darken(cfg.primary, .7), borderRadius: Math.max(Number(cfg.radius) - 4, 6) + 'px' }}><I n={cfg.icon} fill sx={{ fontSize: size * .6 }} /></Avatar>;
+}
+function PageHead({ title, sub, action, eyebrow }) {
+  return (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'flex-end' }} justifyContent="space-between" sx={{ mb: 3 }}>
+      <Box sx={{ minWidth: 0 }}>
+        {eyebrow && <Typography variant="overline" color="text.secondary">{eyebrow}</Typography>}
+        <Typography variant="h4" component="h1" sx={{ fontSize: { xs: 26, md: 32 }, textWrap: 'balance' }}>{title}</Typography>
+        {sub && <Typography color="text.secondary" sx={{ mt: .5, maxWidth: 720 }}>{sub}</Typography>}
+      </Box>
+      {action && <Box sx={{ flexShrink: 0 }}>{action}</Box>}
+    </Stack>
+  );
+}
+function Kpi({ icon, label, value, hint, color, onClick }) {
+  const t = useTheme();
+  return (
+    <Card sx={{ height: '100%', cursor: onClick ? 'pointer' : 'default', transition: 'transform .15s', '&:hover': onClick ? { transform: 'translateY(-2px)' } : {} }} onClick={onClick}>
+      <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Avatar variant="rounded" sx={{ bgcolor: soft(color, t), color: inkOn(color, t), width: 50, height: 50, borderRadius: 3 }}><I n={icon} /></Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h5" className="num" sx={{ lineHeight: 1.15 }}>{value}</Typography>
+          <Typography variant="body2" color="text.secondary" fontWeight={600}>{label}</Typography>
+          {hint && <Typography variant="caption" color="text.secondary">{hint}</Typography>}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+function Timeline({ items }) {
+  const t = useTheme();
+  return (
+    <Box>
+      {items.map((x, i) => {
+        const c = ST[x.state] || '#E3DEEE';
+        return (
+          <Box key={i} sx={{ display: 'flex', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: .6 }}>
+              <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: soft(c, t), border: '2px solid', borderColor: inkOn(c, t) }} />
+              {i < items.length - 1 && <Box sx={{ flex: 1, width: 2, bgcolor: 'divider', my: .5 }} />}
+            </Box>
+            <Box sx={{ pb: 2, minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={800}>{x.state}</Typography>
+              <Typography variant="caption" color="text.secondary">{x.at} · {x.by}</Typography>
+              {x.reason && <Typography variant="body2" sx={{ mt: .75, px: 1.5, py: 1, bgcolor: 'action.hover', borderRadius: 1.5 }}>{x.reason}</Typography>}
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+function FileButton({ label, accept, onFile, icon = 'upload', variant = 'outlined', size }) {
+  return (
+    <Button variant={variant} size={size} component="label" startIcon={<I n={icon} />}>
+      {label}
+      <input hidden type="file" accept={accept} onChange={e => { const f = e.target.files && e.target.files[0]; if (f) onFile(f); e.target.value = ''; }} />
+    </Button>
+  );
+}
+function Empty({ icon, title, text }) {
+  return (
+    <Box sx={{ textAlign: 'center', py: 6, px: 2 }}>
+      <I n={icon} sx={{ fontSize: 44, color: 'text.secondary' }} />
+      <Typography variant="subtitle1" fontWeight={800} sx={{ mt: 1 }}>{title}</Typography>
+      <Typography variant="body2" color="text.secondary">{text}</Typography>
+    </Box>
+  );
+}
+
+const REASONS_ADJ = ['Falta número de orden de compra', 'Valor no coincide con lo pactado', 'Datos del receptor incompletos', 'Falta anexo o soporte', 'Otro'];
+const REASONS_REJ = ['Receptor incorrecto', 'Factura duplicada', 'Servicio o bien no recibido', 'Proveedor sin contrato vigente', 'Otro'];
+function ReasonDialog({ open, title, catalog, confirm, color = 'primary', onClose, onSubmit }) {
+  const [m, setM] = useState('');
+  const [d, setD] = useState('');
+  useEffect(() => { if (open) { setM(''); setD(''); } }, [open]);
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle fontWeight={800}>{title}</DialogTitle>
+      <DialogContent>
+        <Alert severity="info" icon={<I n="mark_email_unread" />} sx={{ mb: 2 }}>El motivo es obligatorio y se notificará al proveedor (RN-04).</Alert>
+        <TextField id="reason-cat" select label="Motivo" value={m} onChange={e => setM(e.target.value)} sx={{ mb: 2 }}>
+          {catalog.map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}
+        </TextField>
+        <TextField id="reason-detail" label="Detalle para el proveedor" multiline minRows={3} value={d} onChange={e => setD(e.target.value)} />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button variant="contained" color={color} disabled={!m || (m === 'Otro' && !d.trim())} onClick={() => onSubmit(m + (d.trim() ? ' · ' + d.trim() : ''))}>{confirm}</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* ---------- Diálogo de factura (empresa y proveedor) ---------- */
+function InvoiceDialog({ ctx, id, onClose }) {
+  const { db, portal, act } = ctx;
+  const inv = db.invoices.find(x => x.id === id);
+  const [dlg, setDlg] = useState(null);
+  const [comment, setComment] = useState('');
+  const [pay, setPay] = useState({ date: '2026-11-09', ref: '', source: 'Manual', receipt: '' });
+  const [sched, setSched] = useState('2026-11-30');
+  if (!inv) return null;
+  const sup = db.suppliers.find(s => s.id === inv.sid);
+  const sub = Math.round(inv.total / 1.19), iva = inv.total - sub;
+  const emp = portal === 'empresa';
+  const canReview = emp && ['Radicada', 'En revisión'].includes(inv.status);
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="md" scroll="paper">
+      <DialogTitle sx={{ pr: 6 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+          <Typography variant="h6" fontWeight={800}>Factura {inv.number}</Typography>
+          <StatusChip s={inv.status} />
+          <Typography variant="caption" color="text.secondary" className="num">{inv.rad} · v{inv.versions}</Typography>
+        </Stack>
+        <IconButton aria-label="Cerrar" onClick={onClose} sx={{ position: 'absolute', right: 12, top: 12 }}><I n="close" /></IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={7}>
+            <Typography variant="overline" color="text.secondary">Datos leídos del XML</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5, mt: 1, mb: 2 }}>
+              {[['Proveedor', sup.name], ['NIT emisor', sup.nit], ['Receptor', COMPANY.name + ' · ' + COMPANY.nit], ['Fecha de emisión', fdate(inv.date)],
+                ['Subtotal', fmt(sub)], ['IVA 19 %', fmt(iva)], ['Total', fmt(inv.total)], ['Orden de compra', inv.po || 'No indicada']].map(([k, v]) => (
+                <Box key={k} sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary">{k}</Typography>
+                  <Typography variant="body2" fontWeight={700} className="num" sx={{ overflowWrap: 'anywhere' }}>{v}</Typography>
+                </Box>
+              ))}
+            </Box>
+            <Typography variant="overline" color="text.secondary">Archivos</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1, mb: 2 }}>
+              <Chip icon={<I n="code" sx={{ fontSize: 18 }} />} label={inv.number + '.xml'} variant="outlined" onClick={() => ctx.notify('Vista del XML abierta con URL temporal (5 min)', 'info')} />
+              <Chip icon={<I n="picture_as_pdf" sx={{ fontSize: 18 }} />} label={inv.number + '.pdf'} variant="outlined" onClick={() => ctx.notify('Vista del PDF abierta con URL temporal (5 min)', 'info')} />
+              {inv.versions > 1 && <Chip icon={<I n="history" sx={{ fontSize: 18 }} />} label={`${inv.versions - 1} versión(es) anterior(es)`} variant="outlined" />}
+            </Stack>
+            <Typography variant="overline" color="text.secondary">Observaciones</Typography>
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              {inv.comments.length === 0 && <Typography variant="body2" color="text.secondary">Sin observaciones.</Typography>}
+              {inv.comments.map((c, i) => (
+                <Box key={i} sx={{ p: 1.5, borderRadius: 2, bgcolor: c.side === 'empresa' ? alpha(ctx.theme.brand.primary, .18) : alpha(ctx.theme.brand.secondary, .2), alignSelf: c.side === portal ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+                  <Typography variant="caption" fontWeight={800}>{c.by} · {c.at}</Typography>
+                  <Typography variant="body2">{c.text}</Typography>
+                </Box>
+              ))}
+              <Stack direction="row" spacing={1}>
+                <TextField id="inv-comment" size="small" placeholder="Escribir una observación" value={comment} onChange={e => setComment(e.target.value)} />
+                <IconButton aria-label="Enviar observación" color="primary" disabled={!comment.trim()} onClick={() => { act.comment(inv.id, comment.trim()); setComment(''); }}><I n="send" /></IconButton>
+              </Stack>
+            </Stack>
+          </Grid>
+          <Grid item xs={12} md={5}>
+            <Typography variant="overline" color="text.secondary">Historial (RN-02)</Typography>
+            <Box data-tour="inv-timeline" sx={{ mt: 1 }}><Timeline items={inv.history} /></Box>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2, flexWrap: 'wrap', gap: 1 }}>
+        {canReview && <>
+          <Button color="error" startIcon={<I n="block" />} onClick={() => setDlg('rej')}>Rechazar</Button>
+          <Button variant="outlined" startIcon={<I n="edit_note" />} onClick={() => setDlg('adj')}>Solicitar ajustes</Button>
+          <Button data-tour="inv-approve" variant="contained" startIcon={<I n="check_circle" />} onClick={() => { act.transition(inv.id, 'Aprobada'); onClose(); }}>Aprobar</Button>
+        </>}
+        {emp && inv.status === 'Aprobada' && <Button variant="outlined" startIcon={<I n="event" />} onClick={() => setDlg('sched')}>Programar pago</Button>}
+        {emp && ['Aprobada', 'Programada para pago'].includes(inv.status) && <Button data-tour="inv-pay" variant="contained" startIcon={<I n="paid" />} onClick={() => setDlg('pay')}>Registrar pago</Button>}
+        {!emp && inv.status === 'Requiere ajustes' && <FileButton variant="contained" label="Cargar versión corregida" accept=".xml,.pdf" icon="upload_file" onFile={f => { act.newVersion(inv.id, f.name); onClose(); }} />}
+        {!emp && inv.status === 'Requiere ajustes' && <Button onClick={() => { act.newVersion(inv.id, inv.number + '-v' + (inv.versions + 1) + '.xml'); onClose(); }}>Usar archivo de ejemplo</Button>}
+        <Box sx={{ flex: 1 }} />
+        <Button onClick={onClose}>Cerrar</Button>
+      </DialogActions>
+
+      <ReasonDialog open={dlg === 'adj'} title="Solicitar ajustes" catalog={REASONS_ADJ} confirm="Enviar solicitud" onClose={() => setDlg(null)} onSubmit={r => { act.transition(inv.id, 'Requiere ajustes', r); setDlg(null); onClose(); }} />
+      <ReasonDialog open={dlg === 'rej'} title="Rechazar factura" catalog={REASONS_REJ} confirm="Rechazar" color="error" onClose={() => setDlg(null)} onSubmit={r => { act.transition(inv.id, 'Rechazada', r); setDlg(null); onClose(); }} />
+
+      <Dialog open={dlg === 'sched'} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
+        <DialogTitle fontWeight={800}>Programar pago</DialogTitle>
+        <DialogContent><TextField id="sched-date" type="date" label="Fecha estimada de pago" value={sched} onChange={e => setSched(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ mt: 1 }} /></DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button onClick={() => setDlg(null)}>Cancelar</Button><Button variant="contained" onClick={() => { act.transition(inv.id, 'Programada para pago', 'Fecha estimada: ' + fdate(sched), { payDate: sched }); setDlg(null); onClose(); }}>Programar</Button></DialogActions>
+      </Dialog>
+
+      <Dialog open={dlg === 'pay'} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
+        <DialogTitle fontWeight={800}>Registrar pago</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" icon={<I n="verified_user" />} sx={{ mb: 2 }}>Se registrarán la fuente, la fecha y el usuario responsable (RN-06).</Alert>
+          <Stack spacing={2}>
+            <TextField id="pay-date" type="date" label="Fecha de pago" value={pay.date} onChange={e => setPay({ ...pay, date: e.target.value })} InputLabelProps={{ shrink: true }} />
+            <TextField id="pay-amount" label="Valor pagado" value={fmt(inv.total)} InputProps={{ readOnly: true }} />
+            <TextField id="pay-ref" label="Referencia bancaria" placeholder="TRF-000000" value={pay.ref} onChange={e => setPay({ ...pay, ref: e.target.value })} />
+            <TextField id="pay-src" select label="Fuente" value={pay.source} onChange={e => setPay({ ...pay, source: e.target.value })}>
+              <MenuItem value="Manual">Manual</MenuItem>
+              <MenuItem value="Excel" disabled>Importación Excel (Fase 2)</MenuItem>
+              <MenuItem value="ERP" disabled>Integración ERP (Fase 2)</MenuItem>
+            </TextField>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <FileButton label="Adjuntar comprobante" accept=".pdf,.jpg,.png" icon="attach_file" onFile={f => setPay({ ...pay, receipt: f.name })} />
+              <Typography variant="caption" color="text.secondary" noWrap>{pay.receipt || 'Opcional'}</Typography>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDlg(null)}>Cancelar</Button>
+          <Button variant="contained" disabled={!pay.date || !pay.ref.trim()} onClick={() => { act.pay(inv.id, pay); setDlg(null); onClose(); }}>Marcar como pagada</Button>
+        </DialogActions>
+      </Dialog>
+    </Dialog>
+  );
+}
+
+/* ---------- Portal empresa ---------- */
+function EmpInicio({ ctx }) {
+  const { db, go } = ctx;
+  const pend = db.invoices.filter(i => ['Radicada', 'En revisión'].includes(i.status));
+  const oldest = [...pend].sort((a, b) => daysFrom(b.date) - daysFrom(a.date)).slice(0, 4);
+  const docsIssue = db.suppliers.filter(s => ['Vencida', 'Por vencer', 'Incompleta'].includes(s.docs));
+  const vigentes = db.suppliers.filter(s => s.docs === 'Vigente' || s.docs === 'Por vencer').length;
+  const toPay = db.invoices.filter(i => ['Aprobada', 'Programada para pago'].includes(i.status));
+  return (
+    <>
+      <PageHead eyebrow={'Lunes 9 de noviembre · ' + ctx.cfg.companyName} title="Buenos días, Andrea" sub="Esto es lo que necesita atención hoy en cuentas por pagar y gestión de proveedores." action={<Button variant="contained" startIcon={<I n="person_add" />} onClick={() => go('proveedores')}>Invitar proveedor</Button>} />
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="pending_actions" color="#F5E3A1" value={pend.length} label="Facturas por revisar" hint={'Más antigua: ' + (oldest[0] ? daysFrom(oldest[0].date) + ' días' : '—')} onClick={() => go('facturas')} /></Grid>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="event_busy" color="#F4B6C9" value={docsIssue.length} label="Proveedores con documentos por atender" hint="Vencidos, por vencer o incompletos" onClick={() => go('proveedores')} /></Grid>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="payments" color="#D7B8F0" value={fmt(toPay.reduce((a, b) => a + b.total, 0))} label="Aprobado por pagar" hint={toPay.length + ' facturas'} onClick={() => go('pagos')} /></Grid>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="download_done" color="#9EDCC6" value={db.certs.reduce((a, c) => a + c.downloads, 0)} label="Certificados descargados en autoservicio" hint="Este año" onClick={() => go('certificados')} /></Grid>
+      </Grid>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={7}>
+          <Card><CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="h6">Facturas con más días sin revisión</Typography>
+              <Button size="small" onClick={() => go('facturas')}>Ver bandeja</Button>
+            </Stack>
+            <List disablePadding>
+              {oldest.map(i => {
+                const s = db.suppliers.find(x => x.id === i.sid);
+                return (
+                  <ListItemButton key={i.id} onClick={() => ctx.openInv(i.id)} sx={{ gap: 1.5, alignItems: 'center' }}>
+                    <Avatar variant="rounded" sx={{ bgcolor: 'action.hover', color: 'text.primary', fontWeight: 800, fontSize: 13, width: 44, height: 44 }} className="num">{daysFrom(i.date)}d</Avatar>
+                    <ListItemText primary={<Typography fontWeight={700} noWrap>{s.name}</Typography>} secondary={<span className="num">{i.number} · {fmt(i.total)}</span>} sx={{ minWidth: 0 }} />
+                    <StatusChip s={i.status} />
+                  </ListItemButton>
+                );
+              })}
+              {oldest.length === 0 && <Empty icon="task_alt" title="Bandeja al día" text="No hay facturas pendientes de revisión." />}
+            </List>
+          </CardContent></Card>
+        </Grid>
+        <Grid item xs={12} md={5}>
+          <Card sx={{ mb: 2 }}><CardContent>
+            <Typography variant="h6" sx={{ mb: 1.5 }}>Cumplimiento documental</Typography>
+            <Stack direction="row" alignItems="baseline" spacing={1}><Typography variant="h4" className="num">{Math.round(vigentes / db.suppliers.length * 100)} %</Typography><Typography color="text.secondary">de proveedores con documentación vigente</Typography></Stack>
+            <LinearProgress variant="determinate" value={vigentes / db.suppliers.length * 100} sx={{ height: 10, borderRadius: 5, my: 1.5, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { borderRadius: 5, bgcolor: ctx.theme.brand.secondary } }} />
+            <Typography variant="caption" color="text.secondary">Meta del piloto: 90 %</Typography>
+          </CardContent></Card>
+          <Card><CardContent>
+            <Typography variant="h6" sx={{ mb: 1 }}>Indicadores del piloto</Typography>
+            {[['Facturas por portal vs. correo', '84 %'], ['Tiempo medio a primera revisión', '1,6 días'], ['Devueltas por información incompleta', '11 %'], ['Proveedores activos', db.suppliers.filter(s => s.status === 'Activo').length + ' de ' + db.suppliers.length]].map(([k, v]) => (
+              <Stack key={k} direction="row" justifyContent="space-between" sx={{ py: 1, borderBottom: 1, borderColor: 'divider', '&:last-child': { border: 0 } }}>
+                <Typography variant="body2" color="text.secondary">{k}</Typography><Typography variant="body2" fontWeight={800} className="num">{v}</Typography>
+              </Stack>
+            ))}
+          </CardContent></Card>
+        </Grid>
+      </Grid>
+    </>
+  );
+}
+
+function EmpFacturas({ ctx }) {
+  const { db } = ctx;
+  const [st, setSt] = useState('Pendientes');
+  const [q, setQ] = useState('');
+  const rows = db.invoices.filter(i => {
+    const s = db.suppliers.find(x => x.id === i.sid);
+    const okS = st === 'Todas' ? true : st === 'Pendientes' ? ['Radicada', 'En revisión'].includes(i.status) : i.status === st;
+    const okQ = !q || (s.name + ' ' + i.number + ' ' + i.rad).toLowerCase().includes(q.toLowerCase());
+    return okS && okQ;
+  }).sort((a, b) => daysFrom(b.date) - daysFrom(a.date));
+  return (
+    <>
+      <PageHead title="Bandeja de facturas" sub="Ordenada por antigüedad. Abra una factura para ver XML, PDF, historial y decidir." />
+      <Card sx={{ mb: 2 }}><CardContent sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <TextField id="inv-q" placeholder="Buscar por proveedor, número o radicado" value={q} onChange={e => setQ(e.target.value)} sx={{ flex: '1 1 260px' }} size="small" InputProps={{ startAdornment: <InputAdornment position="start"><I n="search" /></InputAdornment> }} />
+        <TextField id="inv-st" select size="small" label="Estado" value={st} onChange={e => setSt(e.target.value)} sx={{ flex: '0 1 240px' }}>
+          {['Pendientes', 'Todas', ...INV_STATES].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+        </TextField>
+      </CardContent></Card>
+      <Card>
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table>
+            <TableHead><TableRow><TableCell>Radicado</TableCell><TableCell>Proveedor</TableCell><TableCell>Factura</TableCell><TableCell>Emisión</TableCell><TableCell align="right">Valor</TableCell><TableCell>Antigüedad</TableCell><TableCell>Estado</TableCell><TableCell /></TableRow></TableHead>
+            <TableBody>
+              {rows.map(i => {
+                const s = db.suppliers.find(x => x.id === i.sid);
+                const d = daysFrom(i.date);
+                const open = ['Radicada', 'En revisión'].includes(i.status);
+                return (
+                  <TableRow key={i.id} hover sx={{ cursor: 'pointer' }} onClick={() => ctx.openInv(i.id)}>
+                    <TableCell className="num" sx={{ whiteSpace: 'nowrap' }}>{i.rad}</TableCell>
+                    <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>{s.name}</TableCell>
+                    <TableCell className="num">{i.number}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(i.date)}</TableCell>
+                    <TableCell align="right" className="num" sx={{ whiteSpace: 'nowrap' }}>{fmt(i.total)}</TableCell>
+                    <TableCell>{open ? <Chip size="small" variant="outlined" color={d > 5 ? 'warning' : 'default'} label={d + ' días'} /> : <Typography variant="caption" color="text.secondary">—</Typography>}</TableCell>
+                    <TableCell><StatusChip s={i.status} /></TableCell>
+                    <TableCell align="right"><Button size="small" variant={open ? 'contained' : 'text'}>{open ? 'Revisar' : 'Ver'}</Button></TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        {rows.length === 0 && <Empty icon="inbox" title="Sin resultados" text="Cambie el filtro de estado o la búsqueda." />}
+      </Card>
+    </>
+  );
+}
+
+function EmpProveedores({ ctx }) {
+  const { db, act } = ctx;
+  const [f, setF] = useState('Todos');
+  const [sel, setSel] = useState(null);
+  const [inv, setInv] = useState(false);
+  const [form, setForm] = useState({ nit: '', name: '', email: '', type: 'Servicios' });
+  const [blk, setBlk] = useState(false);
+  const rows = db.suppliers.filter(s => f === 'Todos' || s.status === f || s.docs === f);
+  const s = db.suppliers.find(x => x.id === sel);
+  return (
+    <>
+      <PageHead title="Proveedores" sub={`${db.suppliers.length} proveedores vinculados · Plan Profesional (hasta 500).`} action={
+        <Stack direction="row" spacing={1}>
+          <FileButton label="Invitación masiva" accept=".csv,.xlsx" icon="upload" onFile={fl => ctx.notify(`${fl.name}: 42 filas válidas, 3 con NIT inválido, 1 duplicada. Revise el resumen antes de enviar.`, 'info')} />
+          <Button data-tour="prov-invite" variant="contained" startIcon={<I n="person_add" />} onClick={() => setInv(true)}>Invitar</Button>
+        </Stack>} />
+      <Stack direction="row" spacing={1} sx={{ mb: 2, overflowX: 'auto', pb: .5 }}>
+        {['Todos', 'Activo', 'En revisión', 'Invitado', 'Bloqueado', 'Vencida', 'Por vencer'].map(x => (
+          <Chip key={x} label={x === 'Vencida' ? 'Documentación vencida' : x === 'Por vencer' ? 'Documentos por vencer' : x} onClick={() => setF(x)} color={f === x ? 'primary' : 'default'} variant={f === x ? 'filled' : 'outlined'} />
+        ))}
+      </Stack>
+      <Card>
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table data-tour="prov-table">
+            <TableHead><TableRow><TableCell>Proveedor</TableCell><TableCell>NIT</TableCell><TableCell>Tipo</TableCell><TableCell>Ciudad</TableCell><TableCell>Documentación</TableCell><TableCell>Estado</TableCell></TableRow></TableHead>
+            <TableBody>
+              {rows.map(x => (
+                <TableRow key={x.id} hover sx={{ cursor: 'pointer' }} onClick={() => setSel(x.id)}>
+                  <TableCell sx={{ minWidth: 220 }}><Typography fontWeight={700} variant="body2">{x.name}</Typography><Typography variant="caption" color="text.secondary">{x.email}</Typography></TableCell>
+                  <TableCell className="num" sx={{ whiteSpace: 'nowrap' }}>{x.nit}</TableCell>
+                  <TableCell>{x.type}</TableCell><TableCell>{x.city}</TableCell>
+                  <TableCell><StatusChip s={x.docs} /></TableCell><TableCell><StatusChip s={x.status} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+
+      <Dialog open={!!s} onClose={() => setSel(null)} fullWidth maxWidth="sm">
+        {s && <>
+          <DialogTitle sx={{ pr: 6 }}>
+            <Typography variant="h6" fontWeight={800}>{s.name}</Typography>
+            <Stack direction="row" spacing={1} sx={{ mt: .5 }}><StatusChip s={s.status} /><StatusChip s={s.docs} /></Stack>
+            <IconButton aria-label="Cerrar" onClick={() => setSel(null)} sx={{ position: 'absolute', right: 12, top: 12 }}><I n="close" /></IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5, mb: 2 }}>
+              {[['NIT', s.nit], ['Tipo', s.type], ['Contacto', s.contact], ['Correo', s.email], ['Ciudad', s.city], ['Facturas radicadas', db.invoices.filter(i => i.sid === s.id).length], ['Certificados publicados', db.certs.filter(c => c.sid === s.id && c.status === 'Publicado').length], ['Pagado en 2026', fmt(db.payments.filter(p => db.invoices.find(i => i.id === p.iid).sid === s.id).reduce((a, p) => a + p.amount, 0))]].map(([k, v]) => (
+                <Box key={k} sx={{ minWidth: 0 }}><Typography variant="caption" color="text.secondary">{k}</Typography><Typography variant="body2" fontWeight={700} className="num" sx={{ overflowWrap: 'anywhere' }}>{v}</Typography></Box>
+              ))}
+            </Box>
+            {s.id === ME && <>
+              <Typography variant="overline" color="text.secondary">Documentos</Typography>
+              <List dense>{db.docs.map(d => <ListItemButton key={d.id} disableRipple sx={{ cursor: 'default' }}><ListItemText primary={d.name} secondary={d.expires ? 'Vence ' + fdate(d.expires) : 'Sin vencimiento'} /><StatusChip s={docState(d)} /></ListItemButton>)}</List>
+            </>}
+            {s.status === 'Bloqueado' && <Alert severity="warning" sx={{ mt: 1 }}>No puede radicar facturas; sí puede consultar y descargar lo publicado (RN-10).</Alert>}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2, gap: 1, flexWrap: 'wrap' }}>
+            {s.status === 'Invitado' && <Button onClick={() => ctx.notify('Invitación reenviada a ' + s.email)}>Reenviar invitación</Button>}
+            {s.status === 'En revisión' && <Button variant="contained" startIcon={<I n="how_to_reg" />} onClick={() => act.supplierStatus(s.id, 'Activo', 'Registro aprobado')}>Aprobar registro</Button>}
+            {s.status === 'Bloqueado' ? <Button variant="outlined" onClick={() => act.supplierStatus(s.id, 'Activo', 'Desbloqueado')}>Desbloquear</Button>
+              : s.status === 'Activo' && <Button color="error" onClick={() => setBlk(true)}>Bloquear</Button>}
+            <Box sx={{ flex: 1 }} /><Button onClick={() => setSel(null)}>Cerrar</Button>
+          </DialogActions>
+        </>}
+      </Dialog>
+      <ReasonDialog open={blk} title="Bloquear proveedor" catalog={['Documentación vencida', 'Incumplimiento contractual', 'Solicitud de cumplimiento', 'Otro']} confirm="Bloquear" color="error" onClose={() => setBlk(false)} onSubmit={r => { act.supplierStatus(s.id, 'Bloqueado', r); setBlk(false); }} />
+
+      <Dialog open={inv} onClose={() => setInv(false)} fullWidth maxWidth="xs">
+        <DialogTitle fontWeight={800}>Invitar proveedor</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField id="inv-nit" label="NIT (con dígito de verificación)" placeholder="900.000.000-0" value={form.nit} onChange={e => setForm({ ...form, nit: e.target.value })} />
+            <TextField id="inv-name" label="Razón social" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            <TextField id="inv-mail" label="Correo de contacto" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <TextField id="inv-type" select label="Tipo de proveedor" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+              <MenuItem value="Servicios">Servicios</MenuItem><MenuItem value="Bienes">Bienes</MenuItem><MenuItem value="Persona natural">Persona natural</MenuItem>
+            </TextField>
+            <Typography variant="caption" color="text.secondary">El enlace de invitación vence en 7 días y llevará la marca de {ctx.cfg.companyName}.</Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setInv(false)}>Cancelar</Button>
+          <Button variant="contained" disabled={onlyDigits(form.nit).length < 9 || !form.name || !form.email.includes('@')} onClick={() => { act.invite(form); setInv(false); setForm({ nit: '', name: '', email: '', type: 'Servicios' }); }}>Enviar invitación</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
+function EmpCertificados({ ctx }) {
+  const { db, act } = ctx;
+  const [tab, setTab] = useState(0);
+  const [f, setF] = useState({ sid: 's1', type: 'Retención en la fuente', period: 'Año gravable 2025', file: '', nit: '830.045.221-3' });
+  const [batch, setBatch] = useState(null);
+  const [un, setUn] = useState(null);
+  const mismatch = f.sid && onlyDigits(f.nit).slice(0, 9) !== onlyDigits(db.suppliers.find(s => s.id === f.sid).nit).slice(0, 9);
+  return (
+    <>
+      <PageHead title="Certificados" sub="Solo se publican certificados cuyo NIT coincide con el proveedor (RN-05)." />
+      <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }} variant="scrollable" allowScrollButtonsMobile>
+        <Tab label="Publicados" /><Tab label="Publicar uno" /><Tab label="Publicar por lote" />
+      </Tabs>
+      {tab === 0 && <Card data-tour="cert-table"><TableContainer sx={{ overflowX: 'auto' }}><Table>
+        <TableHead><TableRow><TableCell>Proveedor</TableCell><TableCell>Tipo</TableCell><TableCell>Periodo</TableCell><TableCell>Publicado</TableCell><TableCell align="right">Descargas</TableCell><TableCell>Estado</TableCell><TableCell /></TableRow></TableHead>
+        <TableBody>{db.certs.map(c => (
+          <TableRow key={c.id}>
+            <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>{db.suppliers.find(s => s.id === c.sid).name}</TableCell>
+            <TableCell>{c.type}</TableCell><TableCell sx={{ whiteSpace: 'nowrap' }}>{c.period}</TableCell><TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(c.published)}</TableCell>
+            <TableCell align="right" className="num">{c.downloads}</TableCell><TableCell><StatusChip s={c.status} /></TableCell>
+            <TableCell align="right">{c.status === 'Publicado' && <Button size="small" color="error" onClick={() => setUn(c.id)}>Retirar</Button>}</TableCell>
+          </TableRow>))}
+        </TableBody></Table></TableContainer></Card>}
+      {tab === 1 && <Card sx={{ maxWidth: 640 }}><CardContent><Stack spacing={2}>
+        <TextField id="c-sup" select label="Proveedor" value={f.sid} onChange={e => { const s = db.suppliers.find(x => x.id === e.target.value); setF({ ...f, sid: s.id, nit: s.nit }); }}>
+          {db.suppliers.filter(s => s.status !== 'Invitado').map(s => <MenuItem key={s.id} value={s.id}>{s.name} · {s.nit}</MenuItem>)}
+        </TextField>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <TextField id="c-type" select label="Tipo" value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>{['Retención en la fuente', 'ReteICA', 'ReteIVA', 'Certificado de pagos'].map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+          <TextField id="c-per" select label="Periodo" value={f.period} onChange={e => setF({ ...f, period: e.target.value })}>{['Año gravable 2025', '5.º bimestre 2026', '4.º bimestre 2026', '3.er bimestre 2026'].map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+        </Stack>
+        <Stack direction="row" spacing={1.5} alignItems="center"><FileButton label="Seleccionar PDF" accept=".pdf" icon="picture_as_pdf" onFile={fl => setF({ ...f, file: fl.name })} /><Typography variant="body2" color="text.secondary" noWrap>{f.file || 'Ningún archivo'}</Typography></Stack>
+        <TextField id="c-nit" label="NIT detectado en el certificado" value={f.nit} onChange={e => setF({ ...f, nit: e.target.value })} helperText="En la maqueta puede editarlo para probar la validación." error={mismatch} />
+        {mismatch && <Alert severity="error">El NIT del certificado no coincide con el proveedor seleccionado. No se puede publicar.</Alert>}
+        <Box><Button variant="contained" startIcon={<I n="publish" />} disabled={mismatch} onClick={() => { act.publishCert({ ...f, file: f.file || 'certificado.pdf' }); setTab(0); }}>Publicar y notificar</Button></Box>
+      </Stack></CardContent></Card>}
+      {tab === 2 && <Card sx={{ maxWidth: 760 }}><CardContent>
+        {!batch && <Stack spacing={2} alignItems="flex-start">
+          <Typography>Cargue un ZIP con un PDF por proveedor. El sistema empareja cada archivo por el NIT del nombre o del contenido.</Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <FileButton variant="contained" label="Cargar ZIP" accept=".zip" icon="folder_zip" onFile={fl => { setBatch({ name: fl.name, loading: true }); setTimeout(() => setBatch({ name: fl.name }), 900); }} />
+            <Button onClick={() => { setBatch({ name: 'retencion-2025.zip', loading: true }); setTimeout(() => setBatch({ name: 'retencion-2025.zip' }), 900); }}>Usar lote de ejemplo</Button>
+          </Stack>
+        </Stack>}
+        {batch && batch.loading && <Box><Typography sx={{ mb: 1 }}>Procesando {batch.name}…</Typography><LinearProgress /></Box>}
+        {batch && !batch.loading && <Stack spacing={2}>
+          <Typography variant="h6">Resumen de {batch.name}</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}><Kpi icon="link" color="#9EDCC6" value="118" label="Emparejados" /></Grid>
+            <Grid item xs={12} sm={4}><Kpi icon="link_off" color="#F5E3A1" value="4" label="Sin emparejar" /></Grid>
+            <Grid item xs={12} sm={4}><Kpi icon="warning" color="#F4A9B8" value="1" label="En conflicto" /></Grid>
+          </Grid>
+          <Alert severity="warning">Sin emparejar: 811204551.pdf, cert_juan_perez.pdf, 900000001.pdf, scan_0042.pdf · En conflicto: 805112987.pdf (ya existe para el periodo).</Alert>
+          <Stack direction="row" spacing={1}><Button onClick={() => setBatch(null)}>Cancelar</Button><Button variant="contained" startIcon={<I n="publish" />} onClick={() => { act.batch(118); setBatch(null); }}>Publicar 118 certificados</Button></Stack>
+        </Stack>}
+      </CardContent></Card>}
+      <ReasonDialog open={!!un} title="Retirar certificado" catalog={['Publicado por error', 'Valores incorrectos', 'Proveedor equivocado', 'Otro']} confirm="Retirar" color="error" onClose={() => setUn(null)} onSubmit={r => { act.unpublish(un, r); setUn(null); }} />
+    </>
+  );
+}
+
+function EmpPagos({ ctx }) {
+  const { db } = ctx;
+  const due = db.invoices.filter(i => ['Aprobada', 'Programada para pago'].includes(i.status));
+  return (
+    <>
+      <PageHead title="Estados de pago" sub="Actualización manual en el MVP. La importación por Excel y la integración con el ERP llegan en la Fase 2." action={<Tooltip title="Disponible en Fase 2"><span><Button variant="outlined" disabled startIcon={<I n="upload" />}>Importar Excel</Button></span></Tooltip>} />
+      <Typography variant="h6" sx={{ mb: 1 }}>Por pagar</Typography>
+      <Card sx={{ mb: 3 }}><TableContainer sx={{ overflowX: 'auto' }}><Table>
+        <TableHead><TableRow><TableCell>Proveedor</TableCell><TableCell>Factura</TableCell><TableCell align="right">Valor</TableCell><TableCell>Fecha estimada</TableCell><TableCell>Estado</TableCell><TableCell /></TableRow></TableHead>
+        <TableBody>{due.map(i => (
+          <TableRow key={i.id} hover>
+            <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>{db.suppliers.find(s => s.id === i.sid).name}</TableCell>
+            <TableCell className="num">{i.number}</TableCell><TableCell align="right" className="num" sx={{ whiteSpace: 'nowrap' }}>{fmt(i.total)}</TableCell>
+            <TableCell sx={{ whiteSpace: 'nowrap' }}>{i.payDate ? fdate(i.payDate) : 'Sin programar'}</TableCell><TableCell><StatusChip s={i.status} /></TableCell>
+            <TableCell align="right"><Button size="small" variant="contained" onClick={() => ctx.openInv(i.id)}>Gestionar</Button></TableCell>
+          </TableRow>))}
+        </TableBody></Table></TableContainer>
+        {due.length === 0 && <Empty icon="savings" title="Nada pendiente" text="No hay facturas aprobadas sin pagar." />}
+      </Card>
+      <Typography variant="h6" sx={{ mb: 1 }}>Pagos registrados</Typography>
+      <Card data-tour="pagos-done"><TableContainer sx={{ overflowX: 'auto' }}><Table>
+        <TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Proveedor</TableCell><TableCell>Factura</TableCell><TableCell>Referencia</TableCell><TableCell align="right">Valor</TableCell><TableCell>Fuente</TableCell><TableCell>Responsable</TableCell></TableRow></TableHead>
+        <TableBody>{db.payments.map(p => { const i = db.invoices.find(x => x.id === p.iid); return (
+          <TableRow key={p.id}>
+            <TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(p.paidAt)}</TableCell><TableCell sx={{ fontWeight: 700, minWidth: 200 }}>{db.suppliers.find(s => s.id === i.sid).name}</TableCell>
+            <TableCell className="num">{i.number}</TableCell><TableCell className="num">{p.ref}</TableCell><TableCell align="right" className="num" sx={{ whiteSpace: 'nowrap' }}>{fmt(p.amount)}</TableCell>
+            <TableCell><Chip size="small" variant="outlined" label={p.source} /></TableCell><TableCell sx={{ whiteSpace: 'nowrap' }}>{p.by}</TableCell>
+          </TableRow>); })}
+        </TableBody></Table></TableContainer></Card>
+    </>
+  );
+}
+
+const ROLES = ['Administrador', 'Compras', 'Cuentas por pagar', 'Aprobador', 'Tesorería', 'Contabilidad', 'Auditor'];
+function EmpUsuarios({ ctx }) {
+  const { db, act } = ctx;
+  const [open, setOpen] = useState(false);
+  const [u, setU] = useState({ name: '', email: '', roles: ['Cuentas por pagar'] });
+  return (
+    <>
+      <PageHead title="Usuarios y roles" sub={`${db.users.filter(x => x.active).length} activos de 20 permitidos por el plan.`} action={<Button variant="contained" startIcon={<I n="person_add" />} onClick={() => setOpen(true)}>Invitar usuario</Button>} />
+      <Card><TableContainer sx={{ overflowX: 'auto' }}><Table>
+        <TableHead><TableRow><TableCell>Usuario</TableCell><TableCell>Roles</TableCell><TableCell>Acceso</TableCell></TableRow></TableHead>
+        <TableBody>{db.users.map(x => (
+          <TableRow key={x.id}>
+            <TableCell sx={{ minWidth: 220 }}><Stack direction="row" spacing={1.5} alignItems="center"><Avatar sx={{ width: 34, height: 34, bgcolor: ctx.theme.brand.secondary, color: darken(ctx.theme.brand.secondary, .7), fontSize: 14, fontWeight: 800 }}>{x.name.split(' ').map(w => w[0]).slice(0, 2).join('')}</Avatar><Box sx={{ minWidth: 0 }}><Typography variant="body2" fontWeight={700}>{x.name}</Typography><Typography variant="caption" color="text.secondary">{x.email}</Typography></Box></Stack></TableCell>
+            <TableCell><Stack direction="row" spacing={.5} flexWrap="wrap" useFlexGap>{x.roles.map(r => <Chip key={r} size="small" label={r} color="primary" variant="outlined" />)}</Stack></TableCell>
+            <TableCell><FormControlLabel control={<Switch checked={x.active} disabled={x.id === 'u1'} onChange={() => act.toggleUser(x.id)} />} label={x.active ? 'Activo' : 'Desactivado'} /></TableCell>
+          </TableRow>))}
+        </TableBody></Table></TableContainer></Card>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle fontWeight={800}>Invitar usuario</DialogTitle>
+        <DialogContent><Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField id="u-name" label="Nombre completo" value={u.name} onChange={e => setU({ ...u, name: e.target.value })} />
+          <TextField id="u-mail" label="Correo corporativo" value={u.email} onChange={e => setU({ ...u, email: e.target.value })} />
+          <Box><Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Roles</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>{ROLES.map(r => { const on = u.roles.includes(r); return <Chip key={r} label={r} color={on ? 'primary' : 'default'} variant={on ? 'filled' : 'outlined'} onClick={() => setU({ ...u, roles: on ? u.roles.filter(x => x !== r) : [...u.roles, r] })} />; })}</Stack>
+          </Box>
+        </Stack></DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button onClick={() => setOpen(false)}>Cancelar</Button><Button variant="contained" disabled={!u.name || !u.email.includes('@') || !u.roles.length} onClick={() => { act.addUser(u); setOpen(false); setU({ name: '', email: '', roles: ['Cuentas por pagar'] }); }}>Enviar invitación</Button></DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
+function EmpAuditoria({ ctx }) {
+  const [q, setQ] = useState('');
+  const rows = ctx.db.audit.filter(a => !q || Object.values(a).join(' ').toLowerCase().includes(q.toLowerCase()));
+  return (
+    <>
+      <PageHead title="Auditoría" sub="Bitácora inmutable de operaciones críticas (RN-08). Las acciones que haga en la maqueta aparecen aquí." action={<Button variant="outlined" startIcon={<I n="download" />} onClick={() => ctx.notify('Exportación CSV en preparación; le llegará por correo.', 'info')}>Exportar CSV</Button>} />
+      <TextField id="aud-q" size="small" placeholder="Filtrar por usuario, acción o entidad" value={q} onChange={e => setQ(e.target.value)} sx={{ mb: 2, maxWidth: 420 }} InputProps={{ startAdornment: <InputAdornment position="start"><I n="filter_list" /></InputAdornment> }} />
+      <Card><TableContainer sx={{ overflowX: 'auto' }}><Table data-tour="audit-table">
+        <TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Usuario</TableCell><TableCell>Acción</TableCell><TableCell>Entidad</TableCell><TableCell>Detalle</TableCell></TableRow></TableHead>
+        <TableBody>{rows.map((a, i) => (
+          <TableRow key={i}><TableCell className="num" sx={{ whiteSpace: 'nowrap' }}>{a.at}</TableCell><TableCell sx={{ whiteSpace: 'nowrap', fontWeight: 700 }}>{a.actor}</TableCell><TableCell sx={{ whiteSpace: 'nowrap' }}>{a.action}</TableCell><TableCell sx={{ whiteSpace: 'nowrap' }}>{a.entity}</TableCell><TableCell sx={{ minWidth: 240 }}>{a.detail}</TableCell></TableRow>))}
+        </TableBody></Table></TableContainer></Card>
+    </>
+  );
+}
+
+/* ---------- Configuración (marca, textos, parámetros) ---------- */
+function ColorField({ id, label, value, onChange, extra = [] }) {
+  const t = useTheme();
+  const [txt, setTxt] = useState(value);
+  useEffect(() => { setTxt(value); }, [value]);
+  const valid = /^#[0-9a-fA-F]{6}$/.test(txt);
+  return (
+    <Box>
+      <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>{label}</Typography>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+        {[...extra, ...PASTELS].map(p => (
+          <Tooltip key={p.c} title={p.n}>
+            <Box component="button" type="button" aria-label={p.n} onClick={() => onChange(p.c)} sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: p.c, cursor: 'pointer', border: '2px solid', borderColor: value.toLowerCase() === p.c.toLowerCase() ? t.brand.strong : 'divider', outline: value.toLowerCase() === p.c.toLowerCase() ? `3px solid ${alpha(t.brand.strong, .25)}` : 'none', p: 0 }} />
+          </Tooltip>
+        ))}
+        <Box component="label" sx={{ position: 'relative', width: 32, height: 32, borderRadius: '50%', border: '2px dashed', borderColor: 'divider', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+          <I n="colorize" sx={{ fontSize: 18 }} />
+          <input aria-label={'Color personalizado ' + label} type="color" value={valid ? value : '#ffffff'} onChange={e => onChange(e.target.value.toUpperCase())} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+        </Box>
+        <TextField id={id} size="small" value={txt} fullWidth={false} onChange={e => { const v = e.target.value.trim(); setTxt(v); if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v.toUpperCase()); }} error={!valid} helperText={valid ? '' : 'Use #RRGGBB'} sx={{ width: 130 }} inputProps={{ className: 'num', maxLength: 7 }} />
+      </Stack>
+    </Box>
+  );
+}
+function ContrastNote({ bg, fg, label }) {
+  const r = getContrastRatio(bg, fg);
+  const ok = r >= 4.5;
+  return <Chip size="small" icon={<I n={ok ? 'check_circle' : 'warning'} sx={{ fontSize: 18 }} />} color={ok ? 'success' : 'warning'} variant="outlined" label={`${label}: ${r.toFixed(1)}:1 ${ok ? '· cumple AA' : '· no cumple AA'}`} />;
+}
+
+function Preview({ c }) {
+  const t = useTheme();
+  const appInk = bestInk(c.appbar);
+  return (
+    <Card sx={{ overflow: 'hidden' }}>
+      <Box sx={{ px: 2, py: 1.5, bgcolor: c.appbar, color: appInk, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+        <BrandMark cfg={c} size={30} />
+        <Box sx={{ minWidth: 0 }}><Typography fontWeight={800} noWrap sx={{ lineHeight: 1.1 }}>{c.appName || 'Sin nombre'}</Typography><Typography variant="caption" sx={{ opacity: .75 }} noWrap>{c.companyName}</Typography></Box>
+        <Box sx={{ flex: 1 }} /><I n="notifications" />
+      </Box>
+      <Box sx={{ p: 2, bgcolor: 'background.default' }}>
+        <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(c.secondary, t.palette.mode === 'dark' ? .2 : .45), mb: 2 }}>
+          <Typography variant="subtitle2">Mensaje de bienvenida</Typography>
+          <Typography variant="body2" sx={{ mt: .5 }}>{c.texts.welcome}</Typography>
+        </Box>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+          <Button variant="contained" startIcon={<I n="upload_file" />}>Radicar factura</Button>
+          <Button variant="outlined">Ver certificados</Button>
+          <Button>Cancelar</Button>
+        </Stack>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+          {['Radicada', 'En revisión', 'Aprobada', 'Requiere ajustes', 'Pagada'].map(s => <StatusChip key={s} s={s} />)}
+        </Stack>
+        <Divider sx={{ mb: 1 }} />
+        <Typography variant="caption" color="text.secondary" component="div">{c.texts.footer}</Typography>
+        <Typography variant="caption" color="text.secondary" component="div">Soporte: {c.texts.supportEmail} · {c.texts.supportPhone}</Typography>
+      </Box>
+    </Card>
+  );
+}
+
+function EmpConfig({ ctx }) {
+  const { cfg, draft, setDraft, saveDraft, resetCfg } = ctx;
+  const c = draft || cfg;
+  const [tab, setTab] = useState(0);
+  const [askReset, setAskReset] = useState(false);
+  const set = patch => setDraft({ ...c, ...patch });
+  const setT = patch => setDraft({ ...c, texts: { ...c.texts, ...patch } });
+  const setP = patch => setDraft({ ...c, params: { ...c.params, ...patch } });
+  const t = ctx.theme;
+  const valid = [c.primary, c.secondary, c.appbar].every(x => /^#[0-9a-fA-F]{6}$/.test(x));
+  const btnBg = t.palette.primary.main, btnInk = t.palette.primary.contrastText;
+  return (
+    <>
+      <PageHead title="Configuración" sub="Lo que defina aquí lo verán todos los usuarios de la empresa y sus proveedores, incluso en los correos. Los cambios se ven en vivo antes de guardar." />
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={7}>
+          <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ mb: 2 }} variant="scrollable" allowScrollButtonsMobile>
+            <Tab icon={<I n="palette" />} iconPosition="start" label="Marca" />
+            <Tab icon={<I n="text_fields" />} iconPosition="start" label="Textos globales" />
+            <Tab icon={<I n="tune" />} iconPosition="start" label="Parámetros" />
+          </Tabs>
+          {tab === 0 && <Card><CardContent><Stack spacing={3}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField id="cfg-app" label="Nombre de la aplicación" value={c.appName} onChange={e => set({ appName: e.target.value })} />
+              <TextField id="cfg-co" label="Nombre visible de la empresa" value={c.companyName} onChange={e => set({ companyName: e.target.value })} />
+            </Stack>
+            <Box>
+              <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Ícono de la aplicación</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))', gap: 1, mb: 1.5 }}>
+                {ICONS.map(n => {
+                  const on = !c.logo && c.icon === n;
+                  return <Tooltip key={n} title={n.replace(/_/g, ' ')}><IconButton aria-label={n} onClick={() => set({ icon: n, logo: null })} sx={{ borderRadius: 2, aspectRatio: '1', border: '2px solid', borderColor: on ? t.brand.strong : 'divider', bgcolor: on ? alpha(c.primary, .35) : 'transparent', color: on ? t.brand.strong : 'text.secondary' }}><I n={n} fill={on} /></IconButton></Tooltip>;
+                })}
+              </Box>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <FileButton label="Subir logo (PNG o SVG, máx. 1 MB)" accept="image/png,image/svg+xml,image/jpeg" icon="image" onFile={f => {
+                  if (f.size > 1024 * 1024) { ctx.notify('El logo supera 1 MB. Reduzca el tamaño e intente de nuevo.', 'error'); return; }
+                  const r = new FileReader(); r.onload = () => set({ logo: r.result }); r.readAsDataURL(f);
+                }} />
+                {c.logo && <Button color="error" onClick={() => set({ logo: null })}>Quitar logo</Button>}
+              </Stack>
+            </Box>
+            <ColorField id="cfg-primary" label="Color primario (botones, selección)" value={c.primary} onChange={v => set({ primary: v })} />
+            <ColorField id="cfg-secondary" label="Color secundario (acentos, avatares)" value={c.secondary} onChange={v => set({ secondary: v })} />
+            <ColorField id="cfg-appbar" label="Barra superior" value={c.appbar} onChange={v => set({ appbar: v })} extra={[{ n: 'Blanco', c: '#FFFFFF' }, { n: 'Tinta', c: '#2B2640' }]} />
+            {valid && <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <ContrastNote bg={btnBg} fg={btnInk} label="Botón principal" />
+              <ContrastNote bg={c.appbar} fg={bestInk(c.appbar)} label="Barra superior" />
+            </Stack>}
+            {valid && getContrastRatio(c.appbar, bestInk(c.appbar)) < 4.5 && <Alert severity="warning">El texto sobre la barra superior no alcanza el contraste mínimo. Elija un tono más claro o más oscuro.</Alert>}
+            <Divider />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Estilo de botones</Typography>
+                <ToggleButtonGroup exclusive size="small" value={c.buttonStyle} onChange={(e, v) => v && set({ buttonStyle: v })}>
+                  <ToggleButton value="pastel">Pastel</ToggleButton><ToggleButton value="solid">Sólido</ToggleButton>
+                </ToggleButtonGroup>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Modo predeterminado</Typography>
+                <ToggleButtonGroup exclusive size="small" value={c.mode} onChange={(e, v) => v && set({ mode: v })}>
+                  <ToggleButton value="system"><I n="routine" sx={{ fontSize: 18, mr: .5 }} />Sistema</ToggleButton><ToggleButton value="light"><I n="light_mode" sx={{ fontSize: 18, mr: .5 }} />Claro</ToggleButton><ToggleButton value="dark"><I n="dark_mode" sx={{ fontSize: 18, mr: .5 }} />Oscuro</ToggleButton>
+                </ToggleButtonGroup>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField id="cfg-font" select label="Tipografía" value={c.font} onChange={e => set({ font: e.target.value })}>
+                  {FONTS.map(f => <MenuItem key={f} value={f} sx={{ fontFamily: `"${f}", sans-serif` }}>{f}</MenuItem>)}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Densidad</Typography>
+                <ToggleButtonGroup exclusive size="small" value={c.density} onChange={(e, v) => v && set({ density: v })}>
+                  <ToggleButton value="comoda">Cómoda</ToggleButton><ToggleButton value="compacta">Compacta</ToggleButton>
+                </ToggleButtonGroup>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="body2" fontWeight={700}>Redondeo de bordes: <span className="num">{c.radius} px</span></Typography>
+                <Slider aria-label="Redondeo de bordes" value={Number(c.radius)} min={0} max={24} step={2} marks onChange={(e, v) => set({ radius: v })} sx={{ color: t.brand.strong, maxWidth: 420 }} />
+              </Grid>
+            </Grid>
+          </Stack></CardContent></Card>}
+          {tab === 1 && <Card><CardContent><Stack spacing={2.5}>
+            <TextField id="t-welcome" label="Mensaje de bienvenida (inicio del proveedor)" multiline minRows={3} value={c.texts.welcome} onChange={e => setT({ welcome: e.target.value })} />
+            <TextField id="t-footer" label="Pie de página" value={c.texts.footer} onChange={e => setT({ footer: e.target.value })} />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField id="t-mail" label="Correo de soporte" value={c.texts.supportEmail} onChange={e => setT({ supportEmail: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><I n="mail" /></InputAdornment> }} />
+              <TextField id="t-phone" label="Teléfono de soporte" value={c.texts.supportPhone} onChange={e => setT({ supportPhone: e.target.value })} InputProps={{ startAdornment: <InputAdornment position="start"><I n="call" /></InputAdornment> }} />
+            </Stack>
+            <TextField id="t-data" label="Aviso de tratamiento de datos" multiline minRows={2} value={c.texts.dataNotice} onChange={e => setT({ dataNotice: e.target.value })} />
+            <TextField id="t-terms" label="Términos y condiciones (registro del proveedor)" multiline minRows={2} value={c.texts.terms} onChange={e => setT({ terms: e.target.value })} />
+          </Stack></CardContent></Card>}
+          {tab === 2 && <Card><CardContent><Stack spacing={3}>
+            <Box>
+              <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Alertar vencimiento de documentos (días antes)</Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>{[60, 30, 15, 10, 5, 1].map(d => { const on = c.params.alertDays.includes(d); return <Chip key={d} label={d + ' días'} color={on ? 'primary' : 'default'} variant={on ? 'filled' : 'outlined'} onClick={() => setP({ alertDays: on ? c.params.alertDays.filter(x => x !== d) : [...c.params.alertDays, d].sort((a, b) => b - a) })} />; })}</Stack>
+            </Box>
+            <FormControlLabel control={<Switch checked={c.params.blockOnExpired} onChange={e => setP({ blockOnExpired: e.target.checked })} />} label={<Box><Typography fontWeight={700} variant="body2">Bloquear radicación si hay documento obligatorio vencido</Typography><Typography variant="caption" color="text.secondary">RN-07: los vencidos generan alertas y, si activa esto, restricciones.</Typography></Box>} />
+            <FormControlLabel control={<Switch checked={c.params.requirePO} onChange={e => setP({ requirePO: e.target.checked })} />} label={<Box><Typography fontWeight={700} variant="body2">Exigir orden de compra al radicar</Typography><Typography variant="caption" color="text.secondary">Pendiente de validar con clientes piloto.</Typography></Box>} />
+            <Box>
+              <Typography variant="body2" fontWeight={700}>Tamaño máximo por archivo: <span className="num">{c.params.maxFileMb} MB</span></Typography>
+              <Slider aria-label="Tamaño máximo" value={c.params.maxFileMb} min={1} max={50} onChange={(e, v) => setP({ maxFileMb: v })} sx={{ color: t.brand.strong, maxWidth: 420 }} />
+            </Box>
+            <TextField id="p-ext" label="Extensiones permitidas" value={c.params.extensions} onChange={e => setP({ extensions: e.target.value })} helperText="Separadas por coma. Todo archivo pasa por antivirus." />
+            <TextField id="p-levels" select label="Niveles de aprobación de facturas" value={c.params.approvalLevels} onChange={e => setP({ approvalLevels: e.target.value })} sx={{ maxWidth: 320 }}>
+              <MenuItem value={1}>1 nivel</MenuItem><MenuItem value={2}>2 niveles (por monto)</MenuItem><MenuItem value={3}>3 niveles (por monto)</MenuItem>
+            </TextField>
+          </Stack></CardContent></Card>}
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <Box sx={{ position: { lg: 'sticky' }, top: 16 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <Typography variant="overline" color="text.secondary">Vista previa</Typography>
+              {draft && <Chip size="small" color="warning" variant="outlined" label="Sin guardar" />}
+            </Stack>
+            <Box data-tour="cfg-preview"><Preview c={c} /></Box>
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
+              <Button variant="contained" startIcon={<I n="save" />} disabled={!draft || !valid} onClick={saveDraft}>Guardar cambios</Button>
+              <Button disabled={!draft} onClick={() => setDraft(null)}>Descartar</Button>
+              <Button color="error" onClick={() => setAskReset(true)}>Restablecer predeterminados</Button>
+            </Stack>
+          </Box>
+        </Grid>
+      </Grid>
+      <Dialog open={askReset} onClose={() => setAskReset(false)} maxWidth="xs">
+        <DialogTitle fontWeight={800}>¿Restablecer la apariencia?</DialogTitle>
+        <DialogContent><Typography>La marca, los textos y los parámetros vuelven a los valores predeterminados para todos los usuarios. El cambio queda en auditoría.</Typography></DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button onClick={() => setAskReset(false)}>Cancelar</Button><Button variant="contained" color="error" onClick={() => { resetCfg(); setAskReset(false); }}>Restablecer</Button></DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
+/* ---------- Portal proveedor ---------- */
+function blockReason(ctx) {
+  const sup = ctx.db.suppliers.find(s => s.id === ME);
+  if (sup.status === 'Bloqueado') return 'Su cuenta está bloqueada por la empresa. Puede consultar y descargar, pero no radicar.';
+  if (ctx.cfg.params.blockOnExpired) {
+    const exp = ctx.db.docs.filter(d => d.required && docState(d) === 'Vencido');
+    if (exp.length) return 'Tiene documentos obligatorios vencidos: ' + exp.map(d => d.name).join(', ') + '. Renuévelos para radicar.';
+  }
+  return null;
+}
+
+function ProvInicio({ ctx }) {
+  const { db, cfg, go } = ctx;
+  const mine = db.invoices.filter(i => i.sid === ME);
+  const inProc = mine.filter(i => !['Pagada', 'Rechazada'].includes(i.status));
+  const adj = mine.filter(i => i.status === 'Requiere ajustes');
+  const soon = db.docs.filter(d => ['Por vencer', 'Vencido', 'Rechazado'].includes(docState(d)));
+  const paid = db.payments.filter(p => db.invoices.find(i => i.id === p.iid).sid === ME);
+  const newCerts = db.certs.filter(c => c.sid === ME && c.isNew && c.status === 'Publicado');
+  const t = ctx.theme;
+  return (
+    <>
+      <Card data-tour="welcome" sx={{ mb: 3, bgcolor: alpha(cfg.secondary, t.palette.mode === 'dark' ? .16 : .4), borderColor: 'transparent' }}>
+        <CardContent sx={{ p: { xs: 2.5, md: 4 }, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ flex: '1 1 320px', minWidth: 0 }}>
+            <Typography variant="overline" color="text.secondary">{cfg.companyName}</Typography>
+            <Typography variant="h4" component="h1" sx={{ fontSize: { xs: 26, md: 32 }, mb: 1 }}>Hola, Sergio</Typography>
+            <Typography sx={{ maxWidth: 640 }}>{cfg.texts.welcome}</Typography>
+          </Box>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="contained" size="large" startIcon={<I n="upload_file" />} onClick={() => go('radicar')}>Radicar factura</Button>
+            <Button variant="outlined" size="large" onClick={() => go('miscert')}>Mis certificados</Button>
+          </Stack>
+        </CardContent>
+      </Card>
+      <Stack spacing={1.5} sx={{ mb: 3 }}>
+        {adj.map(i => <Alert key={i.id} severity="warning" icon={<I n="edit_note" />} action={<Button color="inherit" size="small" onClick={() => ctx.openInv(i.id)}>Corregir</Button>}>La factura <b>{i.number}</b> requiere ajustes: {i.history[i.history.length - 1].reason}</Alert>)}
+        {soon.map(d => <Alert key={d.id} severity={docState(d) === 'Por vencer' ? 'info' : 'error'} icon={<I n="event_busy" />} action={<Button color="inherit" size="small" onClick={() => go('documentos')}>Actualizar</Button>}>{d.name}: {docState(d) === 'Por vencer' ? 'vence el ' + fdate(d.expires) + ' (' + (-daysFrom(d.expires)) + ' días)' : docState(d) === 'Rechazado' ? 'rechazado. ' + (d.reason || '') : 'vencido'}</Alert>)}
+      </Stack>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="hourglass_top" color="#A9D3F5" value={inProc.length} label="Facturas en trámite" onClick={() => go('misfacturas')} /></Grid>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="edit_note" color="#F7C5A8" value={adj.length} label="Requieren ajustes" onClick={() => go('misfacturas')} /></Grid>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="account_balance_wallet" color="#B5DDA4" value={fmt(paid.reduce((a, p) => a + p.amount, 0))} label="Pagado en 2026" hint={paid[0] ? 'Último: ' + fdate(paid[0].paidAt) : ''} onClick={() => go('mispagos')} /></Grid>
+        <Grid item xs={12} sm={6} lg={3}><Kpi icon="workspace_premium" color="#D7B8F0" value={newCerts.length} label="Certificados nuevos" onClick={() => go('miscert')} /></Grid>
+      </Grid>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={8}>
+          <Card><CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}><Typography variant="h6">Mis facturas recientes</Typography><Button size="small" onClick={() => go('misfacturas')}>Ver todas</Button></Stack>
+            <List disablePadding>{mine.slice(0, 5).map(i => (
+              <ListItemButton key={i.id} onClick={() => ctx.openInv(i.id)} sx={{ gap: 1.5 }}>
+                <ListItemIcon sx={{ minWidth: 0 }}><I n="receipt_long" /></ListItemIcon>
+                <ListItemText primary={<span className="num" style={{ fontWeight: 700 }}>{i.number} · {fmt(i.total)}</span>} secondary={'Radicada el ' + fdate(i.date)} />
+                <StatusChip s={i.status} />
+              </ListItemButton>))}
+            </List>
+          </CardContent></Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card><CardContent>
+            <Typography variant="h6" sx={{ mb: 1.5 }}>¿Necesita ayuda?</Typography>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1.5} alignItems="center"><I n="mail" /><Typography variant="body2" sx={{ userSelect: 'all', overflowWrap: 'anywhere' }}>{cfg.texts.supportEmail}</Typography></Stack>
+              <Stack direction="row" spacing={1.5} alignItems="center"><I n="call" /><Typography variant="body2" sx={{ userSelect: 'all' }} className="num">{cfg.texts.supportPhone}</Typography></Stack>
+              <Typography variant="caption" color="text.secondary">{cfg.texts.dataNotice}</Typography>
+            </Stack>
+          </CardContent></Card>
+        </Grid>
+      </Grid>
+    </>
+  );
+}
+
+function ProvPerfil({ ctx }) {
+  const sup = ctx.db.suppliers.find(s => s.id === ME);
+  const [f, setF] = useState({ name: sup.name, nit: sup.nit, regimen: 'Responsable de IVA', ciiu: '4923 · Transporte de carga por carretera', addr: 'Av. Calle 13 # 68-40, Bodega 7', city: sup.city, mail: sup.email, phone: '+57 310 555 1820', bank: 'Bancolombia', acct: 'Corriente', num: '•••• •••• 4471' });
+  const fld = (k, l, p = {}) => <Grid item xs={12} sm={6}><TextField id={'pf-' + k} label={l} value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} {...p} /></Grid>;
+  return (
+    <>
+      <PageHead title="Mi perfil y datos tributarios" sub={'Información que ve ' + ctx.cfg.companyName + '. Los cambios en datos bancarios pasan por revisión.'} action={<Button variant="contained" startIcon={<I n="save" />} onClick={() => { ctx.audit('Actualización de perfil', 'Proveedor ' + sup.name, 'Datos generales'); ctx.notify('Perfil actualizado.'); }}>Guardar</Button>} />
+      <Card sx={{ mb: 2 }}><CardContent>
+        <Typography variant="h6" sx={{ mb: 2 }}>Datos generales y tributarios</Typography>
+        <Grid container spacing={2}>
+          {fld('name', 'Razón social')}{fld('nit', 'NIT', { InputProps: { readOnly: true }, helperText: 'Validado con dígito de verificación' })}
+          {fld('regimen', 'Régimen')}{fld('ciiu', 'Actividad económica (CIIU)')}
+          {fld('addr', 'Dirección')}{fld('city', 'Ciudad')}{fld('mail', 'Correo de facturación')}{fld('phone', 'Teléfono')}
+          <Grid item xs={12}><Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Responsabilidades tributarias</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>{['05 · Impuesto sobre la renta', '48 · Responsable de IVA', '52 · Facturador electrónico', '14 · Informante de exógena'].map(r => <Chip key={r} label={r} variant="outlined" />)}</Stack>
+          </Grid>
+        </Grid>
+      </CardContent></Card>
+      <Card><CardContent>
+        <Typography variant="h6" sx={{ mb: 2 }}>Datos bancarios</Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>Para cambiar la cuenta debe adjuntar una certificación bancaria nueva. La empresa la revisará antes de usarla en pagos.</Alert>
+        <Grid container spacing={2}>{fld('bank', 'Banco')}{fld('acct', 'Tipo de cuenta')}{fld('num', 'Número de cuenta', { InputProps: { readOnly: true } })}</Grid>
+      </CardContent></Card>
+    </>
+  );
+}
+
+function ProvDocumentos({ ctx }) {
+  const { db, act, cfg } = ctx;
+  return (
+    <>
+      <PageHead title="Mis documentos" sub={`Recibirá alertas ${cfg.params.alertDays.join(', ')} días antes de cada vencimiento. Formatos: ${cfg.params.extensions} · máx. ${cfg.params.maxFileMb} MB.`} />
+      <Grid container spacing={2}>
+        {db.docs.map(d => {
+          const s = docState(d);
+          return (
+            <Grid item xs={12} md={6} key={d.id}>
+              <Card data-tour={'doc-' + d.id} sx={{ height: '100%' }}><CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, height: '100%' }}>
+                <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                  <Avatar variant="rounded" sx={{ bgcolor: soft(ST[s] || '#E3DEEE', ctx.theme), color: inkOn(ST[s] || '#E3DEEE', ctx.theme), borderRadius: 2 }}><I n="description" /></Avatar>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography fontWeight={800}>{d.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{d.required ? 'Obligatorio' : 'Opcional'} · versión {d.version} · {d.file}</Typography>
+                  </Box>
+                  <StatusChip s={s} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary">{d.expires ? 'Vence el ' + fdate(d.expires) + (s === 'Por vencer' ? ' · faltan ' + (-daysFrom(d.expires)) + ' días' : '') : 'Sin fecha de vencimiento'}</Typography>
+                {d.reason && s === 'Rechazado' && <Alert severity="error" sx={{ py: 0 }}>{d.reason}</Alert>}
+                <Box sx={{ flex: 1 }} />
+                <Stack direction="row" spacing={1}>
+                  <FileButton size="small" variant={s === 'Vigente' || s === 'En revisión' ? 'outlined' : 'contained'} label={s === 'Vigente' || s === 'En revisión' ? 'Reemplazar' : 'Cargar nueva versión'} accept={cfg.params.extensions.split(',').map(x => '.' + x.trim()).join(',')} onFile={f => {
+                    if (f.size > cfg.params.maxFileMb * 1024 * 1024) { ctx.notify(`El archivo supera ${cfg.params.maxFileMb} MB.`, 'error'); return; }
+                    act.uploadDoc(d.id, f.name);
+                  }} />
+                  <Button size="small" onClick={() => ctx.notify(`Historial: ${d.version} versión(es) conservadas.`, 'info')}>Historial</Button>
+                </Stack>
+              </CardContent></Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+    </>
+  );
+}
+
+const SAMPLE = { number: 'LS-2302', date: '2026-11-08', nitE: '830045221', nitR: '900123456', subtotal: 10500000, iva: 1995000, total: 12495000, cufe: 'a3f9c1e07d…b52e', po: '' };
+function parseUBL(text) {
+  try {
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    const one = (root, tag) => { const el = (root || doc).getElementsByTagNameNS('*', tag); return el.length ? el[0].textContent.trim() : ''; };
+    const sup = doc.getElementsByTagNameNS('*', 'AccountingSupplierParty')[0];
+    const cus = doc.getElementsByTagNameNS('*', 'AccountingCustomerParty')[0];
+    const total = Number(one(null, 'PayableAmount')) || 0;
+    const sub = Number(one(null, 'LineExtensionAmount')) || Math.round(total / 1.19);
+    const r = { number: one(null, 'ID'), date: one(null, 'IssueDate'), nitE: onlyDigits(one(sup, 'CompanyID')), nitR: onlyDigits(one(cus, 'CompanyID')), subtotal: sub, iva: total - sub, total, cufe: one(null, 'UUID').slice(0, 14) + '…', po: '' };
+    return r.number ? r : null;
+  } catch (e) { return null; }
+}
+function ProvRadicar({ ctx }) {
+  const { db, cfg, act } = ctx;
+  const [step, setStep] = useState(0);
+  const [files, setFiles] = useState({ xml: '', pdf: '' });
+  const [data, setData] = useState(null);
+  const [done, setDone] = useState(null);
+  const block = blockReason(ctx);
+  const dup = data && db.invoices.find(i => i.sid === ME && i.number.trim().toUpperCase() === String(data.number).trim().toUpperCase() && i.status !== 'Rechazada');
+  const wrongR = data && onlyDigits(data.nitR).slice(0, 9) !== COMPANY.nitRaw;
+  const wrongE = data && onlyDigits(data.nitE).slice(0, 9) !== '830045221';
+  const needPO = data && cfg.params.requirePO && !String(data.po).trim();
+  const canSend = data && !dup && !wrongR && !wrongE && !needPO && data.number && data.total > 0;
+  const loadSample = (patch = {}) => { setFiles({ xml: (patch.number || SAMPLE.number) + '.xml', pdf: (patch.number || SAMPLE.number) + '.pdf' }); setData({ ...SAMPLE, ...patch }); setStep(1); };
+  useEffect(() => {
+    const f = e => {
+      if (e.detail === 'sample') loadSample({ po: '4500-1187' });
+      if (e.detail === 'submit' && data && canSend) { const r = act.radicar(data); setDone(r); setStep(2); }
+    };
+    window.addEventListener('tour-radicar', f);
+    return () => window.removeEventListener('tour-radicar', f);
+  });
+  if (block) return (<><PageHead title="Radicar factura" /><Alert severity="error" icon={<I n="block" />} action={<Button color="inherit" onClick={() => ctx.go('documentos')}>Ir a documentos</Button>}>{block}</Alert></>);
+  return (
+    <>
+      <PageHead title="Radicar factura" sub={`Factura electrónica para ${cfg.companyName} (NIT ${COMPANY.nit}). Cargue el XML y su PDF; leemos los datos por usted.`} />
+      <Stepper activeStep={done ? 3 : step} alternativeLabel sx={{ mb: 3 }}>
+        {['Archivos', 'Revisar datos', 'Radicado'].map(l => <Step key={l}><StepLabel>{l}</StepLabel></Step>)}
+      </Stepper>
+      <Card sx={{ maxWidth: 860, mx: 'auto' }}><CardContent sx={{ p: { xs: 2, md: 3 } }}>
+        {step === 0 && <Stack spacing={2.5}>
+          <Box data-tour="rad-drop" sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 3, p: { xs: 3, md: 5 }, textAlign: 'center', bgcolor: 'action.hover' }}>
+            <I n="cloud_upload" sx={{ fontSize: 48, color: ctx.theme.brand.strong }} />
+            <Typography variant="h6" sx={{ mt: 1 }}>Seleccione el XML de la factura electrónica</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>XML UBL 2.1 validado por la DIAN + representación gráfica en PDF · máx. {cfg.params.maxFileMb} MB</Typography>
+            <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" useFlexGap>
+              <FileButton variant="contained" label="Seleccionar XML" accept=".xml" icon="code" onFile={f => {
+                const r = new FileReader();
+                r.onload = () => { const p = parseUBL(String(r.result)); if (!p) { ctx.notify('No pudimos leer el XML. Verifique que sea una factura electrónica UBL 2.1.', 'error'); return; } setFiles(x => ({ ...x, xml: f.name })); setData(p); setStep(1); };
+                r.readAsText(f);
+              }} />
+              <Button variant="outlined" onClick={() => loadSample()}>Usar factura de ejemplo</Button>
+            </Stack>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>Probar validaciones de la maqueta:</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip variant="outlined" label="Factura duplicada (RN-03)" onClick={() => loadSample({ number: 'LS-2291' })} />
+              <Chip variant="outlined" label="NIT receptor incorrecto" onClick={() => loadSample({ nitR: '901555444' })} />
+            </Stack>
+          </Box>
+        </Stack>}
+        {step === 1 && data && <Stack spacing={2.5} data-tour="rad-form">
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip icon={<I n="code" sx={{ fontSize: 18 }} />} label={files.xml || 'factura.xml'} color="primary" />
+            {files.pdf ? <Chip icon={<I n="picture_as_pdf" sx={{ fontSize: 18 }} />} label={files.pdf} color="primary" /> : <FileButton size="small" label="Adjuntar PDF" accept=".pdf" icon="picture_as_pdf" onFile={f => setFiles({ ...files, pdf: f.name })} />}
+            <FileButton size="small" variant="text" label="Agregar anexo" accept=".pdf,.zip,.jpg,.png" icon="attach_file" onFile={f => ctx.notify('Anexo ' + f.name + ' agregado.', 'info')} />
+          </Stack>
+          {dup && <Alert severity="error" icon={<I n="content_copy" />}>Ya radicó la factura <b>{dup.number}</b> ({dup.rad}, {dup.status}). No se permite duplicar sin una excepción autorizada por la empresa (RN-03).</Alert>}
+          {wrongR && <Alert severity="error">La factura no está dirigida a {cfg.companyName}. El NIT receptor del XML es {data.nitR}; debe ser {COMPANY.nit}.</Alert>}
+          {wrongE && <Alert severity="error">El NIT emisor ({data.nitE}) no corresponde a su empresa.</Alert>}
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}><TextField id="r-num" label="Número de factura" value={data.number} onChange={e => setData({ ...data, number: e.target.value })} error={!!dup} /></Grid>
+            <Grid item xs={12} sm={6}><TextField id="r-date" type="date" label="Fecha de emisión" value={data.date} onChange={e => setData({ ...data, date: e.target.value })} InputLabelProps={{ shrink: true }} /></Grid>
+            <Grid item xs={12} sm={6}><TextField id="r-nite" label="NIT emisor" value={data.nitE} InputProps={{ readOnly: true }} error={wrongE} /></Grid>
+            <Grid item xs={12} sm={6}><TextField id="r-nitr" label="NIT receptor" value={data.nitR} InputProps={{ readOnly: true }} error={wrongR} /></Grid>
+            <Grid item xs={12} sm={4}><TextField id="r-sub" label="Subtotal" value={fmt(data.subtotal)} InputProps={{ readOnly: true }} /></Grid>
+            <Grid item xs={12} sm={4}><TextField id="r-iva" label="IVA" value={fmt(data.iva)} InputProps={{ readOnly: true }} /></Grid>
+            <Grid item xs={12} sm={4}><TextField id="r-total" label="Total a pagar" value={fmt(data.total)} InputProps={{ readOnly: true }} /></Grid>
+            <Grid item xs={12} sm={6}><TextField id="r-po" label={cfg.params.requirePO ? 'Orden de compra (obligatoria)' : 'Orden de compra (opcional)'} value={data.po} onChange={e => setData({ ...data, po: e.target.value })} error={needPO} placeholder="4500-0000" /></Grid>
+            <Grid item xs={12} sm={6}><TextField id="r-cufe" label="CUFE" value={data.cufe} InputProps={{ readOnly: true }} /></Grid>
+          </Grid>
+          <Typography variant="caption" color="text.secondary">{cfg.texts.terms}</Typography>
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Button onClick={() => { setStep(0); setData(null); setFiles({ xml: '', pdf: '' }); }}>Volver</Button>
+            <Button variant="contained" startIcon={<I n="send" />} disabled={!canSend} onClick={() => { const r = act.radicar(data); setDone(r); setStep(2); }}>Radicar factura</Button>
+          </Stack>
+        </Stack>}
+        {step === 2 && done && <Stack data-tour="rad-done" spacing={2} alignItems="center" sx={{ textAlign: 'center', py: 3 }}>
+          <Avatar sx={{ width: 72, height: 72, bgcolor: ctx.theme.brand.secondary, color: darken(ctx.theme.brand.secondary, .7) }}><I n="task_alt" sx={{ fontSize: 40 }} /></Avatar>
+          <Typography variant="h5">Factura radicada</Typography>
+          <Typography color="text.secondary">Número de radicado</Typography>
+          <Typography variant="h4" className="num" sx={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: { xs: 24, md: 32 } }}>{done.rad}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480 }}>Le avisaremos por correo y en el portal cuando cambie de estado. También aparece ya en la bandeja de cuentas por pagar del portal empresa.</Typography>
+          <Stack direction="row" spacing={1}><Button variant="outlined" onClick={() => ctx.go('misfacturas')}>Ver mis facturas</Button><Button variant="contained" onClick={() => { setStep(0); setData(null); setDone(null); }}>Radicar otra</Button></Stack>
+        </Stack>}
+      </CardContent></Card>
+    </>
+  );
+}
+
+function ProvFacturas({ ctx }) {
+  const mine = ctx.db.invoices.filter(i => i.sid === ME);
+  return (
+    <>
+      <PageHead title="Mis facturas" sub="Toque una factura para ver su historial, observaciones y, si se lo piden, cargar la corrección." action={<Button variant="contained" startIcon={<I n="upload_file" />} onClick={() => ctx.go('radicar')}>Radicar factura</Button>} />
+      <Card><TableContainer sx={{ overflowX: 'auto' }}><Table>
+        <TableHead><TableRow><TableCell>Factura</TableCell><TableCell>Radicado</TableCell><TableCell>Emisión</TableCell><TableCell align="right">Valor</TableCell><TableCell>Estado</TableCell><TableCell>Último movimiento</TableCell></TableRow></TableHead>
+        <TableBody>{mine.map(i => { const last = i.history[i.history.length - 1]; return (
+          <TableRow key={i.id} hover sx={{ cursor: 'pointer' }} onClick={() => ctx.openInv(i.id)}>
+            <TableCell className="num" sx={{ fontWeight: 700 }}>{i.number}</TableCell><TableCell className="num" sx={{ whiteSpace: 'nowrap' }}>{i.rad}</TableCell>
+            <TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(i.date)}</TableCell><TableCell align="right" className="num" sx={{ whiteSpace: 'nowrap' }}>{fmt(i.total)}</TableCell>
+            <TableCell><StatusChip s={i.status} /></TableCell><TableCell sx={{ minWidth: 200 }}><Typography variant="body2">{last.at}</Typography>{i.payDate && i.status === 'Programada para pago' && <Typography variant="caption" color="text.secondary">Pago estimado: {fdate(i.payDate)}</Typography>}</TableCell>
+          </TableRow>); })}
+        </TableBody></Table></TableContainer></Card>
+    </>
+  );
+}
+
+function ProvCertificados({ ctx }) {
+  const [type, setType] = useState('Todos');
+  const rows = ctx.db.certs.filter(c => c.sid === ME && c.status === 'Publicado' && (type === 'Todos' || c.type === type));
+  return (
+    <>
+      <PageHead title="Mis certificados" sub="Descárguelos cuando los necesite; no tiene que pedirlos por correo." />
+      <TextField id="mc-type" select size="small" label="Tipo" value={type} onChange={e => setType(e.target.value)} sx={{ mb: 2, maxWidth: 280 }}>
+        {['Todos', 'Retención en la fuente', 'ReteICA', 'ReteIVA'].map(x => <MenuItem key={x} value={x}>{x}</MenuItem>)}
+      </TextField>
+      <Grid container spacing={2}>
+        {rows.map(c => (
+          <Grid item xs={12} sm={6} lg={4} key={c.id}>
+            <Card sx={{ height: '100%' }}><CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar variant="rounded" sx={{ bgcolor: soft('#D7B8F0', ctx.theme), color: inkOn('#D7B8F0', ctx.theme), borderRadius: 2 }}><I n="workspace_premium" /></Avatar>
+                <Box sx={{ minWidth: 0, flex: 1 }}><Typography fontWeight={800}>{c.type}</Typography><Typography variant="body2" color="text.secondary">{c.period}</Typography></Box>
+                {c.isNew && <Chip size="small" label="Nuevo" color="secondary" />}
+              </Stack>
+              <Typography variant="caption" color="text.secondary">Publicado el {fdate(c.published)} · {c.file}</Typography>
+              <Box sx={{ flex: 1 }} />
+              <Button data-tour={c.id === rows[0].id ? 'cert-dl' : undefined} variant="contained" startIcon={<I n="download" />} onClick={() => ctx.act.download(c.id)}>Descargar PDF</Button>
+            </CardContent></Card>
+          </Grid>
+        ))}
+      </Grid>
+      {rows.length === 0 && <Empty icon="workspace_premium" title="Sin certificados" text="Cuando la empresa publique uno, le avisaremos." />}
+    </>
+  );
+}
+
+function ProvPagos({ ctx }) {
+  const { db } = ctx;
+  const mine = db.payments.filter(p => db.invoices.find(i => i.id === p.iid).sid === ME);
+  const sched = db.invoices.filter(i => i.sid === ME && ['Aprobada', 'Programada para pago'].includes(i.status));
+  return (
+    <>
+      <PageHead title="Mis pagos y comprobantes" sub="Pagos registrados por tesorería, con su referencia bancaria." />
+      {sched.length > 0 && <Card sx={{ mb: 2 }}><CardContent>
+        <Typography variant="h6" sx={{ mb: 1 }}>Próximos pagos</Typography>
+        {sched.map(i => <Stack key={i.id} direction="row" justifyContent="space-between" sx={{ py: 1 }}><Typography className="num" fontWeight={700}>{i.number} · {fmt(i.total)}</Typography><Typography color="text.secondary">{i.payDate ? 'Estimado ' + fdate(i.payDate) : 'Aprobada, sin fecha aún'}</Typography></Stack>)}
+      </CardContent></Card>}
+      <Card><TableContainer sx={{ overflowX: 'auto' }}><Table data-tour="mispagos-table">
+        <TableHead><TableRow><TableCell>Fecha de pago</TableCell><TableCell>Factura</TableCell><TableCell>Referencia</TableCell><TableCell align="right">Valor</TableCell><TableCell /></TableRow></TableHead>
+        <TableBody>{mine.map(p => (
+          <TableRow key={p.id}><TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(p.paidAt)}</TableCell><TableCell className="num">{db.invoices.find(i => i.id === p.iid).number}</TableCell><TableCell className="num">{p.ref}</TableCell><TableCell align="right" className="num" sx={{ whiteSpace: 'nowrap' }}>{fmt(p.amount)}</TableCell>
+            <TableCell align="right"><Button size="small" startIcon={<I n="receipt" />} disabled={!p.receipt} onClick={() => ctx.notify('Comprobante ' + p.receipt + ' abierto con URL temporal.', 'info')}>Comprobante</Button></TableCell></TableRow>))}
+        </TableBody></Table></TableContainer>
+        {mine.length === 0 && <Empty icon="account_balance_wallet" title="Aún no hay pagos" text="Aquí verá cada pago con su comprobante." />}
+      </Card>
+    </>
+  );
+}
+
+function ProvNotif({ ctx }) {
+  const { db, act } = ctx;
+  const list = db.notifs.filter(n => n.to === 'proveedor');
+  const [prefs, setPrefs] = useState({ cert: true, venc: true, pago: true, resumen: false });
+  return (
+    <>
+      <PageHead title="Notificaciones y observaciones" action={<Button onClick={() => act.readAll('proveedor')}>Marcar todas como leídas</Button>} />
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={7}><Card><List>
+          {list.map(n => (
+            <ListItemButton key={n.id} onClick={() => act.read(n.id)} sx={{ gap: 1.5, alignItems: 'flex-start' }}>
+              <Badge color="primary" variant="dot" invisible={n.read}><Avatar variant="rounded" sx={{ bgcolor: 'action.hover', color: 'text.primary', borderRadius: 2 }}><I n={n.icon} /></Avatar></Badge>
+              <ListItemText primary={<Typography fontWeight={n.read ? 500 : 800}>{n.text}</Typography>} secondary={n.at} />
+            </ListItemButton>))}
+        </List></Card></Grid>
+        <Grid item xs={12} md={5}><Card><CardContent>
+          <Typography variant="h6" sx={{ mb: 1 }}>Avisos por correo</Typography>
+          {[['Ajustes y rechazos de facturas', null], ['Seguridad de la cuenta', null], ['Certificados publicados', 'cert'], ['Vencimiento de documentos', 'venc'], ['Pagos registrados', 'pago'], ['Resumen semanal', 'resumen']].map(([l, k]) => (
+            <FormControlLabel key={l} sx={{ display: 'flex', justifyContent: 'space-between', ml: 0, py: .5 }} labelPlacement="start" control={<Switch checked={k ? prefs[k] : true} disabled={!k} onChange={e => k && setPrefs({ ...prefs, [k]: e.target.checked })} />} label={<Box><Typography variant="body2" fontWeight={700}>{l}</Typography>{!k && <Typography variant="caption" color="text.secondary">Obligatorio</Typography>}</Box>} />
+          ))}
+        </CardContent></Card></Grid>
+      </Grid>
+    </>
+  );
+}
+
+/* ---------- Estructura ---------- */
+const NAV = {
+  empresa: [
+    { k: 'inicio', l: 'Inicio', i: 'space_dashboard' }, { k: 'proveedores', l: 'Proveedores', i: 'groups' },
+    { k: 'facturas', l: 'Facturas', i: 'receipt_long', badge: db => db.invoices.filter(i => ['Radicada', 'En revisión'].includes(i.status)).length },
+    { k: 'certificados', l: 'Certificados', i: 'workspace_premium' }, { k: 'pagos', l: 'Pagos', i: 'payments' },
+    { group: 'Administración', i: 'admin_panel_settings', items: [
+      { k: 'usuarios', l: 'Usuarios y roles', i: 'manage_accounts' }, { k: 'auditoria', l: 'Auditoría', i: 'history' }, { k: 'config', l: 'Configuración', i: 'palette' }
+    ] }
+  ],
+  proveedor: [
+    { k: 'inicio', l: 'Inicio', i: 'home' }, { k: 'radicar', l: 'Radicar factura', i: 'upload_file' },
+    { k: 'misfacturas', l: 'Mis facturas', i: 'receipt_long', badge: db => db.invoices.filter(i => i.sid === ME && i.status === 'Requiere ajustes').length },
+    { k: 'documentos', l: 'Mis documentos', i: 'folder_open', badge: db => db.docs.filter(d => ['Por vencer', 'Vencido', 'Rechazado'].includes(docState(d))).length },
+    { k: 'miscert', l: 'Mis certificados', i: 'workspace_premium' }, { k: 'mispagos', l: 'Mis pagos', i: 'account_balance_wallet' },
+    { group: 'Mi cuenta', i: 'account_circle', items: [
+      { k: 'perfil', l: 'Mi perfil', i: 'badge' }, { k: 'notif', l: 'Notificaciones', i: 'notifications', badge: db => db.notifs.filter(n => n.to === 'proveedor' && !n.read).length }
+    ] }
+  ]
+};
+const PAGES = {
+  empresa: { inicio: EmpInicio, proveedores: EmpProveedores, facturas: EmpFacturas, certificados: EmpCertificados, pagos: EmpPagos, usuarios: EmpUsuarios, auditoria: EmpAuditoria, config: EmpConfig },
+  proveedor: { inicio: ProvInicio, radicar: ProvRadicar, misfacturas: ProvFacturas, documentos: ProvDocumentos, miscert: ProvCertificados, mispagos: ProvPagos, perfil: ProvPerfil, notif: ProvNotif }
+};
+
+function Shell({ ctx }) {
+  const { portal, page, go, setPortal, cfg, db, theme } = ctx;
+  const mdUp = useMediaQuery(theme.breakpoints.up('md'));
+  const [mob, setMob] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const appInk = theme.brand.appInk;
+  const notifs = db.notifs.filter(n => n.to === portal);
+  const unread = notifs.filter(n => !n.read).length;
+  const Page = PAGES[portal][page] || PAGES[portal].inicio;
+  const strong = theme.brand.strong;
+  const [openG, setOpenG] = useState({});
+  const selBg = alpha(cfg.primary, theme.palette.mode === 'dark' ? .22 : .4);
+  const countBadge = b => b > 0 && <Chip size="small" label={b} sx={{ height: 22, bgcolor: soft('#F7C5A8', theme), color: inkOn('#F7C5A8', theme) }} />;
+
+  const renderItem = (n, nested) => {
+    const on = page === n.k;
+    return (
+      <ListItemButton key={n.k} data-tour={'nav-' + n.k} selected={on} onClick={() => { go(n.k); setMob(false); }} sx={{ py: 1, pl: nested ? 3.5 : 2, borderRadius: nested ? '999px' : undefined, '&.Mui-selected, &.Mui-selected:hover': { bgcolor: selBg, color: strong } }}>
+        <ListItemIcon sx={{ minWidth: 40, color: on ? strong : 'text.secondary' }}><I n={n.i} fill={on} sx={{ fontSize: nested ? 21 : 22 }} /></ListItemIcon>
+        <ListItemText primary={n.l} primaryTypographyProps={{ fontWeight: on ? 800 : 600 }} />
+        {countBadge(n.badge ? n.badge(db) : 0)}
+      </ListItemButton>
+    );
+  };
+
+  const renderGroup = g => {
+    const open = openG[g.group] !== false;
+    const hasActive = g.items.some(x => x.k === page);
+    const total = g.items.reduce((a, x) => a + (x.badge ? x.badge(db) : 0), 0);
+    const id = 'grp-' + g.group.replace(/\s+/g, '-').toLowerCase();
+    return (
+      <Box key={g.group} sx={{ mt: 1 }}>
+        <ListItemButton aria-expanded={open} aria-controls={id} onClick={() => setOpenG({ ...openG, [g.group]: !open })} sx={{ py: 1, color: hasActive && !open ? strong : 'text.primary' }}>
+          <ListItemIcon sx={{ minWidth: 40, color: hasActive ? strong : 'text.secondary' }}><I n={g.i} fill={hasActive && !open} /></ListItemIcon>
+          <ListItemText primary={g.group} primaryTypographyProps={{ fontWeight: 800 }} />
+          {!open && countBadge(total)}
+          <I n="expand_more" sx={{ ml: .5, color: 'text.secondary', transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }} />
+        </ListItemButton>
+        <Collapse in={open} timeout="auto" unmountOnExit>
+          <List id={id} disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: .25, mt: .25 }}>
+            {g.items.map(x => renderItem(x, true))}
+          </List>
+        </Collapse>
+      </Box>
+    );
+  };
+
+  const nav = (
+    <Box sx={{ width: 264, p: 1.5, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: .25 }}>
+        {NAV[portal].map(n => n.group ? renderGroup(n) : renderItem(n, false))}
+      </List>
+      <Box sx={{ flex: 1 }} />
+      <Card sx={{ mt: 2, bgcolor: alpha(cfg.secondary, theme.palette.mode === 'dark' ? .14 : .3), borderColor: 'transparent' }}><CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        {portal === 'empresa'
+          ? <><Typography variant="caption" fontWeight={800} component="div">Plan Profesional</Typography><Typography variant="caption" color="text.secondary" component="div" className="num">{db.suppliers.length} de 500 proveedores · 2,1 de 100 GB</Typography></>
+          : <><Typography variant="caption" fontWeight={800} component="div">Soporte de {cfg.companyName}</Typography><Typography variant="caption" color="text.secondary" component="div" sx={{ overflowWrap: 'anywhere' }}>{cfg.texts.supportEmail}</Typography></>}
+      </CardContent></Card>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <AppBar position="static" elevation={0} sx={{ bgcolor: cfg.appbar, color: appInk, borderBottom: '1px solid', borderColor: alpha(appInk, .1) }}>
+        <Toolbar disableGutters className="gutter" sx={{ gap: 1.5, minHeight: { xs: 60, md: 68 } }}>
+          {!mdUp && <IconButton color="inherit" edge="start" aria-label="Abrir menú" onClick={() => setMob(true)}><I n="menu" /></IconButton>}
+          <BrandMark cfg={cfg} size={38} />
+          <Box sx={{ minWidth: 0, mr: 'auto' }}>
+            <Typography fontWeight={800} noWrap sx={{ lineHeight: 1.15, fontSize: { xs: 15, md: 17 } }}>{cfg.appName}</Typography>
+            <Typography variant="caption" noWrap component="div" sx={{ opacity: .72 }}>{portal === 'empresa' ? cfg.companyName : 'Transportes La Sabana S.A.S. · para ' + cfg.companyName}</Typography>
+          </Box>
+          {ctx.draft && mdUp && <Chip size="small" color="warning" label="Vista previa sin guardar" />}
+          {!ctx.tour && <Button variant="contained" size="small" onClick={ctx.startTour} startIcon={<I n="play_circle" />} sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Ver recorrido</Button>}
+          {!ctx.tour && <IconButton color="inherit" aria-label="Ver recorrido" onClick={ctx.startTour} sx={{ display: { xs: 'inline-flex', sm: 'none' } }}><I n="play_circle" /></IconButton>}
+          <ToggleButtonGroup exclusive size="small" value={portal} onChange={(e, v) => v && setPortal(v)} sx={{ bgcolor: alpha(appInk, .06), '& .MuiToggleButton-root': { color: alpha(appInk, .75), border: 0, px: { xs: 1, sm: 1.5 } }, '& .Mui-selected': { color: appInk + ' !important', bgcolor: alpha(cfg.primary, .55) + ' !important' } }}>
+            <ToggleButton value="empresa" aria-label="Portal empresa"><I n="apartment" sx={{ fontSize: 20 }} /><Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, ml: .75 }}>Empresa</Box></ToggleButton>
+            <ToggleButton value="proveedor" aria-label="Portal proveedor"><I n="local_shipping" sx={{ fontSize: 20 }} /><Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, ml: .75 }}>Proveedor</Box></ToggleButton>
+          </ToggleButtonGroup>
+          <IconButton color="inherit" aria-label="Notificaciones" onClick={e => setAnchor(e.currentTarget)}><Badge badgeContent={unread} color="error"><I n="notifications" /></Badge></IconButton>
+          {mdUp && <Avatar sx={{ width: 36, height: 36, bgcolor: cfg.secondary, color: darken(cfg.secondary, .7), fontWeight: 800, fontSize: 14 }}>{portal === 'empresa' ? 'AR' : 'SR'}</Avatar>}
+        </Toolbar>
+      </AppBar>
+      <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)} PaperProps={{ sx: { width: 360, maxWidth: 'calc(100vw - 32px)' } }}>
+        <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><Typography fontWeight={800}>Notificaciones</Typography><Button size="small" onClick={() => ctx.act.readAll(portal)}>Marcar leídas</Button></Box>
+        <Divider />
+        {notifs.slice(0, 6).map(n => (
+          <MenuItem key={n.id} onClick={() => { ctx.act.read(n.id); setAnchor(null); }} sx={{ whiteSpace: 'normal', gap: 1.5, alignItems: 'flex-start', py: 1.25 }}>
+            <I n={n.icon} sx={{ mt: .25, color: n.read ? 'text.secondary' : strong }} />
+            <Box><Typography variant="body2" fontWeight={n.read ? 500 : 800}>{n.text}</Typography><Typography variant="caption" color="text.secondary">{n.at}</Typography></Box>
+          </MenuItem>
+        ))}
+      </Menu>
+      <Box sx={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {mdUp
+          ? <Box component="nav" sx={{ flexShrink: 0, borderRight: 1, borderColor: 'divider', bgcolor: 'background.paper', overflowY: 'auto' }}>{nav}</Box>
+          : <Drawer open={mob} onClose={() => setMob(false)} PaperProps={{ sx: { pt: 'env(safe-area-inset-top, 0px)', pl: 'env(safe-area-inset-left, 0px)' } }}>{nav}</Drawer>}
+        <Box component="main" sx={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <Box className="gutter" sx={{ py: { xs: 2.5, md: 4 }, width: '100%', maxWidth: 1320, mx: 'auto', flex: 1 }}>
+            <Page key={portal + page} ctx={ctx} />
+          </Box>
+          <Box className="gutter" component="footer" sx={{ py: 2, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            <Typography variant="caption" color="text.secondary">{cfg.texts.footer}</Typography>
+            <Typography variant="caption" color="text.secondary">Maqueta navegable · datos de ejemplo</Typography>
+          </Box>
+        </Box>
+      </Box>
+      {ctx.invId && <InvoiceDialog ctx={ctx} id={ctx.invId} onClose={() => ctx.openInv(null)} />}
+    </Box>
+  );
+}
+
+/* ---------- Recorrido guiado (camino feliz) ---------- */
+function makeSteps(x) {
+  const inv = () => x.db().invoices.find(i => i.number === 'LS-2302');
+  return [
+    { p: 'empresa', title: 'El administrador configura la marca', text: 'Nombre de la app, ícono, colores pastel y textos globales. Todo se ve en vivo antes de guardar.', target: 'cfg-preview', dur: 5200,
+      run() { x.reset(); x.portal('empresa'); x.go('config'); } },
+    { p: 'empresa', title: 'Cambio de color e ícono en vivo', text: 'Al elegir el color Cielo y el ícono de camión, todo el portal cambia: barra, botones y menú.', target: 'cfg-preview', dur: 5200,
+      run() { x.draft({ ...x.cfg(), primary: '#A9D3F5', icon: 'local_shipping', logo: null }); } },
+    { p: 'empresa', title: 'Compras invita a un proveedor', text: 'Desde la bandeja de proveedores se envía la invitación por correo. El enlace vence en 7 días.', target: 'prov-invite', dur: 4600,
+      run() { x.draft(null); x.go('proveedores'); } },
+    { p: 'empresa', title: 'Invitación enviada', text: 'Logística Express queda en estado "Invitado" y la acción se registra en auditoría.', target: 'prov-table', dur: 4200,
+      run() { x.act().invite({ name: 'Logística Express S.A.S.', nit: '901.778.230-4', email: 'facturas@logexpress.co', type: 'Servicios' }); } },
+    { p: 'proveedor', title: 'El proveedor entra a su portal', text: 'Ve el mensaje de bienvenida que configuró la empresa y sus pendientes del día.', target: 'welcome', dur: 5000,
+      run() { x.portal('proveedor'); } },
+    { p: 'proveedor', title: 'Mantiene sus documentos al día', text: 'La planilla de seguridad social está por vencer, así que carga la nueva versión.', target: 'doc-d4', dur: 4600,
+      run() { x.go('documentos'); } },
+    { p: 'proveedor', title: 'Documento cargado', text: 'El archivo pasa por antivirus, se guarda como nueva versión y queda en revisión.', target: 'doc-d4', dur: 3800,
+      run() { x.act().uploadDoc('d4', 'pila-noviembre-2026.pdf'); } },
+    { p: 'proveedor', title: 'Radica una factura electrónica', text: 'Carga el XML de la factura y su PDF. Ya no envía nada por correo.', target: 'rad-drop', dur: 4600,
+      run() { x.go('radicar'); } },
+    { p: 'proveedor', title: 'El portal lee el XML', text: 'Precarga número, NIT, valores y CUFE. Valida que vaya dirigida a la empresa y que no esté duplicada (RN-03).', target: 'rad-form', dur: 5800,
+      run() { x.radicar('sample'); } },
+    { p: 'proveedor', title: 'Factura radicada', text: 'Recibe su número de radicado. La empresa la ve al instante en su bandeja.', target: 'rad-done', dur: 4600,
+      run() { x.radicar('submit'); } },
+    { p: 'empresa', title: 'Cuentas por pagar recibe la factura', text: 'La bandeja muestra lo pendiente ordenado por antigüedad.', target: 'nav-facturas', dur: 4000,
+      run() { x.portal('empresa'); x.go('facturas'); } },
+    { p: 'empresa', title: 'Revisión de la factura', text: 'El analista ve los datos del XML, el PDF y el historial, y decide.', target: 'inv-approve', dur: 5000,
+      run() { const i = inv(); if (i) x.open(i.id); } },
+    { p: 'empresa', title: 'Factura aprobada', text: 'El cambio queda en el historial con usuario y fecha (RN-02), y el proveedor recibe un aviso.', target: 'inv-timeline', dur: 4800,
+      run() { const i = inv(); if (i) x.act().transition(i.id, 'Aprobada'); } },
+    { p: 'empresa', title: 'Tesorería registra el pago', text: 'Indica fecha, referencia bancaria y comprobante. Se guarda la fuente y el responsable (RN-06).', target: 'inv-pay', dur: 4600,
+      run() { } },
+    { p: 'empresa', title: 'Factura pagada', text: 'El pago aparece en el historial de pagos con su referencia.', target: 'pagos-done', dur: 4600,
+      run() { const i = inv(); if (i) x.act().pay(i.id, { date: '2026-11-09', ref: 'TRF-780455', source: 'Manual', receipt: 'comprobante-TRF-780455.pdf' }); x.open(null); x.go('pagos'); } },
+    { p: 'empresa', title: 'Contabilidad publica un certificado', text: 'Antes de publicar, el portal valida que el NIT del certificado coincida con el proveedor (RN-05).', target: 'cert-table', dur: 4800,
+      run() { x.act().publishCert({ sid: 's1', type: 'ReteIVA', period: '5.º bimestre 2026', file: 'reteiva-b5-2026-830045221.pdf' }); x.go('certificados'); } },
+    { p: 'proveedor', title: 'El proveedor consulta su pago', text: 'Ve el pago con referencia y comprobante, sin llamar ni escribir a la empresa.', target: 'mispagos-table', dur: 4600,
+      run() { x.portal('proveedor'); x.go('mispagos'); } },
+    { p: 'proveedor', title: 'Descarga su certificado', text: 'El certificado nuevo está disponible en autoservicio.', target: 'cert-dl', dur: 4200,
+      run() { x.go('miscert'); } },
+    { p: 'proveedor', title: 'Descarga registrada', text: 'Cada descarga queda registrada para los indicadores de autoservicio.', target: 'cert-dl', dur: 3800,
+      run() { const c = x.db().certs.find(k => k.sid === 's1' && k.status === 'Publicado'); if (c) x.act().download(c.id); } },
+    { p: 'empresa', title: 'Todo quedó en auditoría', text: 'Cada paso del recorrido aparece en la bitácora inmutable (RN-08). Fin del camino feliz.', target: 'audit-table', dur: 7000,
+      run() { x.portal('empresa'); x.go('auditoria'); } }
+  ];
+}
+
+function TourPlayer({ tour, steps, onToggle, onNext, onRestart, onClose }) {
+  const t = useTheme();
+  const step = steps[tour.i];
+  const [rect, setRect] = useState(null);
+  useEffect(() => {
+    setRect(null);
+    const measure = scroll => {
+      const el = document.querySelector('[data-tour="' + step.target + '"]');
+      if (!el) { setRect(null); return; }
+      if (scroll) { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { } }
+      const r = el.getBoundingClientRect();
+      if (!r.width) { setRect(null); return; }
+      setRect({ x: r.left, y: r.top, w: r.width, h: r.height });
+    };
+    const a = setTimeout(() => measure(true), 450);
+    const b = setTimeout(() => measure(false), 1150);
+    const c = setTimeout(() => measure(false), 2300);
+    const onR = () => measure(false);
+    window.addEventListener('resize', onR);
+    return () => { clearTimeout(a); clearTimeout(b); clearTimeout(c); window.removeEventListener('resize', onR); };
+  }, [tour.i, tour.k]);
+  const last = tour.i === steps.length - 1;
+  const ring = t.brand.strong;
+  const dark = t.palette.mode === 'dark';
+  return (
+    <>
+      {rect && <Box aria-hidden="true" sx={{ position: 'fixed', zIndex: 1999, pointerEvents: 'none', left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12, borderRadius: 3, border: `3px solid ${ring}`, boxShadow: `0 0 0 8px ${alpha(ring, .18)}`, transition: 'all .45s ease' }} />}
+      {rect && <Box aria-hidden="true" sx={{ position: 'fixed', zIndex: 2001, pointerEvents: 'none', left: rect.x + Math.min(rect.w / 2, 70), top: rect.y + Math.min(rect.h / 2, 36), transition: 'left .7s ease, top .7s ease', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.3))' }}>
+        <svg width="30" height="30" viewBox="0 0 24 24"><path d="M5 3l14 8-6.5 1.6L9 19.5z" fill={dark ? '#FFFFFF' : '#1E1B2E'} stroke={dark ? '#1E1B2E' : '#FFFFFF'} strokeWidth="1.5" strokeLinejoin="round" /></svg>
+      </Box>}
+      <Card role="region" aria-label="Recorrido del camino feliz" sx={{ position: 'fixed', zIndex: 2000, left: 0, right: 0, mx: 'auto', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', width: 'min(600px, calc(100% - 32px))', boxShadow: dark ? '0 12px 40px rgba(0,0,0,.6)' : '0 12px 40px rgba(30,20,70,.22)' }}>
+        <CardContent sx={{ pb: '16px !important' }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: .75 }}>
+            <Chip size="small" icon={<I n={step.p === 'empresa' ? 'apartment' : 'local_shipping'} sx={{ fontSize: 16 }} />} label={step.p === 'empresa' ? 'Portal empresa' : 'Portal proveedor'} sx={{ bgcolor: soft(step.p === 'empresa' ? '#D7B8F0' : '#9EDCC6', t), color: inkOn(step.p === 'empresa' ? '#D7B8F0' : '#9EDCC6', t) }} />
+            <Typography variant="caption" color="text.secondary" className="num">Paso {tour.i + 1} de {steps.length}</Typography>
+            <Box sx={{ flex: 1 }} />
+            <IconButton size="small" aria-label="Cerrar recorrido" onClick={onClose}><I n="close" /></IconButton>
+          </Stack>
+          <Typography variant="h6" sx={{ lineHeight: 1.25 }}>{step.title}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 1.5 }}>{step.text}</Typography>
+          <Box sx={{ display: 'flex', gap: .5, mb: 1.5 }}>
+            {steps.map((s, i) => (
+              <Box key={i} sx={{ flex: 1, height: 4, borderRadius: 2, bgcolor: i < tour.i ? ring : 'action.hover', overflow: 'hidden' }}>
+                {i === tour.i && <Box key={tour.k} sx={{ height: '100%', bgcolor: ring, width: tour.playing ? 0 : '100%', opacity: tour.playing ? 1 : .5, animation: tour.playing ? `tourbar ${step.dur}ms linear forwards` : 'none' }} />}
+              </Box>
+            ))}
+          </Box>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button size="small" startIcon={<I n="replay" />} onClick={onRestart}>Reiniciar</Button>
+            <Box sx={{ flex: 1 }} />
+            <Button size="small" variant="outlined" startIcon={<I n={tour.playing ? 'pause' : 'play_arrow'} />} onClick={onToggle}>{tour.playing ? 'Pausa' : 'Reproducir'}</Button>
+            <Button size="small" variant="contained" endIcon={<I n="skip_next" />} onClick={onNext} disabled={last}>Siguiente</Button>
+          </Stack>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+function App() {
+  const sysDark = useSysDark();
+  const [cfg, setCfg] = useState(loadCfg);
+  const [draft, setDraft] = useState(null);
+  const active = draft || cfg;
+  const theme = useMemo(() => buildTheme(active, sysDark), [active, sysDark]);
+  const [portal, setPortalRaw] = useState('empresa');
+  const [page, setPage] = useState('inicio');
+  const [db, setDb] = useState(seed);
+  const [toast, setToast] = useState(null);
+  const [invId, setInvId] = useState(null);
+
+  const notify = (msg, sev = 'success') => setToast({ msg, sev, k: Date.now() });
+  const who = () => portal === 'empresa' ? ME_USER : SUP_USER + ' (Transportes La Sabana)';
+  const audit = (action, entity, detail, actor) => setDb(d => ({ ...d, audit: [{ at: stamp(), actor: actor || who(), action, entity, detail }, ...d.audit] }));
+  const pushNotif = (to, icon, text) => setDb(d => ({ ...d, notifs: [{ id: 'n' + Date.now() + Math.random(), to, at: '09 nov 2026', icon, text, read: false }, ...d.notifs] }));
+  const supName = id => db.suppliers.find(s => s.id === id).name;
+
+  const act = {
+    transition(id, to, reason, extra = {}) {
+      const inv = db.invoices.find(i => i.id === id);
+      setDb(d => ({ ...d, invoices: d.invoices.map(i => i.id === id ? { ...i, ...extra, status: to, history: [...i.history, h(to, stamp(), ME_USER, reason)] } : i) }));
+      audit(to === 'Aprobada' ? 'Aprobación' : to === 'Rechazada' ? 'Rechazo' : to === 'Requiere ajustes' ? 'Solicitud de ajustes' : 'Cambio de estado', 'Factura ' + inv.number, inv.status + ' → ' + to + (reason ? ' · ' + reason : ''));
+      if (inv.sid === ME) pushNotif('proveedor', to === 'Aprobada' ? 'check_circle' : to === 'Rechazada' ? 'block' : to === 'Requiere ajustes' ? 'edit_note' : 'event', `Factura ${inv.number}: ${to}${reason ? ' · ' + reason : ''}`);
+      notify(`Factura ${inv.number}: ${to}.${reason ? ' Se notificó al proveedor.' : ''}`);
+    },
+    pay(id, p) {
+      const inv = db.invoices.find(i => i.id === id);
+      setDb(d => ({ ...d,
+        invoices: d.invoices.map(i => i.id === id ? { ...i, status: 'Pagada', history: [...i.history, h('Pagada', stamp(), 'Andrea Ruiz', `Fuente: ${p.source.toLowerCase()} · Ref. ${p.ref}`)] } : i),
+        payments: [{ id: 'p' + Date.now(), iid: id, paidAt: p.date, amount: inv.total, ref: p.ref, source: p.source, by: ME_USER + ' (Administrador)', receipt: p.receipt }, ...d.payments] }));
+      audit('Registro de pago', 'Factura ' + inv.number, `Fuente ${p.source.toLowerCase()} · ${p.ref} · ${fmt(inv.total)} · fecha ${fdate(p.date)}`);
+      if (inv.sid === ME) pushNotif('proveedor', 'paid', `Pago registrado para ${inv.number}: ${fmt(inv.total)} (ref. ${p.ref}).`);
+      notify(`Pago de ${inv.number} registrado.`);
+    },
+    comment(id, text) {
+      const side = portal;
+      setDb(d => ({ ...d, invoices: d.invoices.map(i => i.id === id ? { ...i, comments: [...i.comments, { by: side === 'empresa' ? ME_USER : SUP_USER, side, at: stamp(), text }] } : i) }));
+      const inv = db.invoices.find(i => i.id === id);
+      pushNotif(side === 'empresa' ? 'proveedor' : 'empresa', 'chat', `Nueva observación en ${inv.number}: “${text}”`);
+    },
+    newVersion(id, file) {
+      const inv = db.invoices.find(i => i.id === id);
+      setDb(d => ({ ...d, invoices: d.invoices.map(i => i.id === id ? { ...i, versions: i.versions + 1, status: 'En revisión', po: i.po || '4500-1187', history: [...i.history, h('En revisión', stamp(), SUP_USER, 'Nueva versión cargada: ' + file)] } : i) }));
+      audit('Nueva versión de factura', 'Factura ' + inv.number, 'v' + (inv.versions + 1) + ' · ' + file);
+      pushNotif('empresa', 'upload_file', `${supName(inv.sid)} cargó la corrección de ${inv.number}.`);
+      notify('Corrección enviada. La factura vuelve a revisión.');
+    },
+    radicar(data) {
+      const n = db.seq + 1;
+      const id = 'i' + (100 + n);
+      const rad = 'RAD-2026-' + String(4900 + n).padStart(6, '0');
+      setDb(d => ({ ...d, seq: n, invoices: [{ id, rad, number: data.number, sid: ME, date: data.date, total: Number(data.total), status: 'Radicada', history: [h('Radicada', stamp(), SUP_USER)], versions: 1, comments: [], po: data.po }, ...d.invoices] }));
+      audit('Radicación de factura', 'Factura ' + data.number, rad + ' · ' + fmt(data.total));
+      pushNotif('empresa', 'receipt_long', `Transportes La Sabana radicó la factura ${data.number}.`);
+      return { rad };
+    },
+    invite(f) {
+      setDb(d => ({ ...d, suppliers: [...d.suppliers, { id: 's' + Date.now(), name: f.name, nit: f.nit, type: f.type, status: 'Invitado', docs: 'Sin documentos', email: f.email, city: '—', contact: '—' }] }));
+      audit('Invitación de proveedor', f.name, f.nit + ' · ' + f.email);
+      notify('Invitación enviada a ' + f.email + '. Vence en 7 días.');
+    },
+    supplierStatus(id, st, reason) {
+      setDb(d => ({ ...d, suppliers: d.suppliers.map(s => s.id === id ? { ...s, status: st } : s) }));
+      audit('Cambio de estado de proveedor', supName(id), st + (reason ? ' · ' + reason : ''));
+      if (id === ME) pushNotif('proveedor', st === 'Bloqueado' ? 'block' : 'how_to_reg', `Su cuenta cambió a "${st}"${reason ? ': ' + reason : ''}.`);
+      notify(supName(id) + ': ' + st + '.');
+    },
+    publishCert(f) {
+      setDb(d => ({ ...d, certs: [{ id: 'c' + Date.now(), sid: f.sid, type: f.type, period: f.period, published: '2026-11-09', downloads: 0, status: 'Publicado', file: f.file, isNew: true }, ...d.certs] }));
+      audit('Publicación de certificado', f.type + ' · ' + f.period, supName(f.sid) + ' · NIT validado');
+      if (f.sid === ME) pushNotif('proveedor', 'workspace_premium', `Nuevo certificado ${f.type} (${f.period}) disponible.`);
+      notify('Certificado publicado y proveedor notificado.');
+    },
+    batch(n) { audit('Publicación por lote', 'Retención en la fuente 2025', n + ' certificados emparejados por NIT'); notify(n + ' certificados publicados. Se notificó a cada proveedor.'); },
+    unpublish(id, reason) {
+      const c = db.certs.find(x => x.id === id);
+      setDb(d => ({ ...d, certs: d.certs.map(x => x.id === id ? { ...x, status: 'Retirado' } : x) }));
+      audit('Retiro de certificado', c.type + ' · ' + c.period, supName(c.sid) + ' · ' + reason);
+      notify('Certificado retirado.');
+    },
+    download(id) {
+      const c = db.certs.find(x => x.id === id);
+      setDb(d => ({ ...d, certs: d.certs.map(x => x.id === id ? { ...x, downloads: x.downloads + 1, isNew: false } : x) }));
+      audit('Descarga de certificado', c.type + ' · ' + c.period, c.file);
+      notify('Descarga registrada. En el producto real se abre el PDF con un enlace temporal.', 'info');
+    },
+    uploadDoc(id, file) {
+      const doc = db.docs.find(x => x.id === id);
+      setDb(d => ({ ...d, docs: d.docs.map(x => x.id === id ? { ...x, version: x.version + 1, status: 'En revisión', file, reason: null, expires: x.expires ? '2027-11-09' : null } : x) }));
+      audit('Carga de documento', doc.name, 'v' + (doc.version + 1) + ' · ' + file + ' · antivirus OK');
+      pushNotif('empresa', 'folder_open', `Transportes La Sabana actualizó: ${doc.name}.`);
+      notify('Documento cargado. Quedó en revisión.');
+    },
+    toggleUser(id) {
+      const u = db.users.find(x => x.id === id);
+      setDb(d => ({ ...d, users: d.users.map(x => x.id === id ? { ...x, active: !x.active } : x) }));
+      audit(u.active ? 'Desactivación de usuario' : 'Activación de usuario', u.name, u.email);
+    },
+    addUser(u) {
+      setDb(d => ({ ...d, users: [...d.users, { id: 'u' + Date.now(), name: u.name, email: u.email, roles: u.roles, active: true }] }));
+      audit('Invitación de usuario', u.name, u.roles.join(', '));
+      notify('Invitación enviada a ' + u.email + '.');
+    },
+    read(id) { setDb(d => ({ ...d, notifs: d.notifs.map(n => n.id === id ? { ...n, read: true } : n) })); },
+    readAll(to) { setDb(d => ({ ...d, notifs: d.notifs.map(n => n.to === to ? { ...n, read: true } : n) })); }
+  };
+
+  const saveDraft = () => {
+    if (!draft) return;
+    const changed = Object.keys(draft).filter(k => JSON.stringify(draft[k]) !== JSON.stringify(cfg[k]));
+    setCfg(draft); saveCfg(draft); setDraft(null);
+    audit('Cambio de configuración', 'Marca y parámetros', 'Campos: ' + (changed.join(', ') || 'ninguno'));
+    notify('Configuración guardada. Todos los usuarios y proveedores la verán al ingresar.');
+  };
+  const resetCfg = () => { setCfg(DEFAULT_CFG); saveCfg(DEFAULT_CFG); setDraft(null); audit('Restablecer configuración', 'Marca y parámetros', 'Valores predeterminados'); notify('Configuración restablecida.'); };
+  const setPortal = p => { setPortalRaw(p); setPage('inicio'); setInvId(null); };
+  const go = p => setPage(p);
+
+  const [tour, setTour] = useState(null);
+  const dbRef = useRef(db); dbRef.current = db;
+  const actRef = useRef(act); actRef.current = act;
+  const cfgRef = useRef(cfg); cfgRef.current = cfg;
+  const ranRef = useRef(-1);
+  const steps = useMemo(() => makeSteps({
+    db: () => dbRef.current, act: () => actRef.current, cfg: () => cfgRef.current,
+    reset: () => { setDb(seed()); setDraft(null); setInvId(null); },
+    portal: p => { setPortalRaw(p); setPage('inicio'); setInvId(null); },
+    go: p => setPage(p), draft: setDraft, open: setInvId,
+    radicar: a => window.dispatchEvent(new CustomEvent('tour-radicar', { detail: a }))
+  }), []);
+  useEffect(() => {
+    if (!tour) return;
+    if (ranRef.current !== tour.i) {
+      ranRef.current = tour.i;
+      try { steps[tour.i].run(); } catch (e) { console.warn('Paso del recorrido', e); }
+    }
+    if (!tour.playing) return;
+    const id = setTimeout(() => setTour(x => x && (x.i < steps.length - 1 ? { ...x, i: x.i + 1, k: Date.now() } : { ...x, playing: false })), steps[tour.i].dur);
+    return () => clearTimeout(id);
+  }, [tour]);
+  const startTour = () => { ranRef.current = -1; setTour({ i: 0, playing: true, k: Date.now() }); };
+  useEffect(() => { try { if (location.hash === '#recorrido') startTour(); } catch (e) { } }, []);
+  useEffect(() => {
+    const PROV = ['radicar', 'misfacturas', 'documentos', 'miscert', 'mispagos', 'perfil', 'notif', 'portal-proveedor'];
+    const EMP = ['facturas', 'pagos', 'certificados', 'proveedores', 'auditoria', 'config', 'usuarios', 'portal-empresa'];
+    const apply = () => {
+      let hs = '';
+      try { hs = location.hash.slice(1); } catch (e) { }
+      const p = PROV.includes(hs) ? 'proveedor' : EMP.includes(hs) ? 'empresa' : null;
+      if (!p) return;
+      setPortalRaw(p); setPage(hs.startsWith('portal-') ? 'inicio' : hs); setInvId(null);
+    };
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
+
+  const ctx = { db, setDb, cfg: active, savedCfg: cfg, draft, setDraft, saveDraft, resetCfg, portal, setPortal, page, go, act, notify, audit, theme, invId, openInv: setInvId, tour, startTour };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Shell ctx={ctx} />
+      {tour && <TourPlayer tour={tour} steps={steps}
+        onToggle={() => setTour(x => ({ ...x, playing: !x.playing, k: Date.now() }))}
+        onNext={() => setTour(x => ({ ...x, i: Math.min(x.i + 1, steps.length - 1), k: Date.now() }))}
+        onRestart={startTour}
+        onClose={() => { setTour(null); setDraft(null); }} />}
+      <Snackbar key={toast && toast.k} open={!!toast} autoHideDuration={4200} onClose={() => setToast(null)} anchorOrigin={{ vertical: tour ? 'top' : 'bottom', horizontal: 'center' }} sx={{ mb: 'env(safe-area-inset-bottom, 0px)' }}>
+        {toast ? <Alert severity={toast.sev} variant="filled" onClose={() => setToast(null)} sx={{ fontWeight: 700 }}>{toast.msg}</Alert> : <span />}
+      </Snackbar>
+    </ThemeProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
